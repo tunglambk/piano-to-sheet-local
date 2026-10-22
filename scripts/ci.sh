@@ -3,6 +3,7 @@
 # GPU and sidecar suites need this box and run locally.
 #   scripts/ci.sh          CPU suite (CUDA hidden, no network, no sidecars)
 #   scripts/ci.sh --gpu    also the GPU + sidecar suites on CUDA_DEVICE_INDEX (default 0)
+#   Web checks run when apps/web/node_modules exists (pnpm build + vitest).
 #   P2S_PYTHON=python scripts/ci.sh   run against another interpreter (CI)
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -26,6 +27,11 @@ echo "== models.lock"
 "$PY" scripts/check_lock.py || status=1
 echo "== pytest (not gpu)"
 CUDA_VISIBLE_DEVICES="" "$PY" -m pytest -m "not gpu and not sidecar" || status=1
+
+if command -v pnpm >/dev/null 2>&1 && [[ -d apps/web/node_modules ]]; then
+  echo "== web (typecheck, build, unit tests)"
+  (cd apps/web && pnpm build >/dev/null && pnpm test --silent) || status=1
+fi
 
 if [[ "${1:-}" == "--gpu" ]]; then
   echo "== pytest (gpu)"

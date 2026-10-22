@@ -6,7 +6,7 @@ The repository has one required check, `ci`, plus an optional GPU workflow.
 
 | Workflow | Where it runs | What it does |
 | --- | --- | --- |
-| `ci` (`.github/workflows/ci.yml`) | GitHub-hosted `ubuntu-24.04`, Python 3.11, on every push and pull request | ruff (lint + format), pyright, licence register, model lockfile check, documentation i18n check, and the CPU test suite |
+| `ci` (`.github/workflows/ci.yml`) | GitHub-hosted `ubuntu-24.04`, Python 3.11 and Node 22, on every push and pull request | Python job: ruff (lint + format), pyright, licence register, model lockfile check, documentation i18n check, CPU tests. Web job: `pnpm install`, TypeScript build, Vitest |
 | `gpu` (`.github/workflows/gpu.yml`) | Manual only (`workflow_dispatch`), on a self-hosted runner labelled `gpu` | `scripts/ci.sh --gpu`: the same checks plus the GPU contract tests (Transkun, Beat This!) and the M2ST sidecar test |
 
 ## Run the same checks locally
@@ -33,6 +33,15 @@ The CPU job therefore installs only what those tests touch — `pydantic`, `PyYA
 4. `scripts/check_lock.py` — engines listed in `configs/models.lock` have no `TBD`/`PENDING` field and their hashes are well formed.
 5. `scripts/check_docs.py` — every relative link resolves, and every document listed in `docs/i18n.txt` has its English/Vietnamese pair and a language switcher.
 6. `pytest -m "not gpu and not sidecar"`, after generating a licence-safe six-second sine fixture under `data/fixtures/smoke/` (fixtures are not committed).
+
+## The web app
+
+`apps/web` builds with `pnpm build` (TypeScript + Vite) and has Vitest unit tests for the playback logic; both run in the `web` job. The Playwright suites (`apps/web/e2e`) need the GPU stack and the M2ST sidecar, so they run on a machine that has them:
+
+```bash
+python scripts/make_g2_files.py
+cd apps/web && pnpm exec playwright test
+```
 
 ## Using a self-hosted GPU runner
 

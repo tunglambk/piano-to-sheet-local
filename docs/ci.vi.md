@@ -6,7 +6,7 @@ Repo có một check bắt buộc là `ci`, và thêm một workflow GPU tuỳ c
 
 | Workflow | Chạy ở đâu | Làm gì |
 | --- | --- | --- |
-| `ci` (`.github/workflows/ci.yml`) | GitHub-hosted `ubuntu-24.04`, Python 3.11, mỗi push và pull request | ruff (lint + format), pyright, sổ license, kiểm tra lockfile model, kiểm tra song ngữ tài liệu, và bộ test CPU |
+| `ci` (`.github/workflows/ci.yml`) | GitHub-hosted `ubuntu-24.04`, Python 3.11 và Node 22, mỗi push và pull request | Job Python: ruff (lint + format), pyright, sổ license, kiểm tra lockfile model, kiểm tra song ngữ tài liệu, test CPU. Job web: `pnpm install`, build TypeScript, Vitest |
 | `gpu` (`.github/workflows/gpu.yml`) | Chỉ chạy tay (`workflow_dispatch`), trên runner self-hosted label `gpu` | `scripts/ci.sh --gpu`: các check như trên, cộng contract test GPU (Transkun, Beat This!) và test sidecar M2ST |
 
 ## Chạy đúng các check đó ở máy
@@ -33,6 +33,15 @@ Vì vậy job CPU chỉ cài những gì các test đó dùng — `pydantic`, `P
 4. `scripts/check_lock.py` — các engine trong `configs/models.lock` không có trường `TBD`/`PENDING` và hash đúng định dạng.
 5. `scripts/check_docs.py` — mọi link tương đối phân giải được, và mỗi tài liệu trong `docs/i18n.txt` có đủ cặp Anh/Việt cùng dòng chuyển ngôn ngữ.
 6. `pytest -m "not gpu and not sidecar"`, sau khi tạo một fixture sine 6 giây an toàn về license dưới `data/fixtures/smoke/` (fixture không được commit).
+
+## Web app
+
+`apps/web` build bằng `pnpm build` (TypeScript + Vite) và có unit test Vitest cho phần phát lại; cả hai chạy trong job `web`. Bộ Playwright (`apps/web/e2e`) cần stack GPU và sidecar M2ST nên chạy trên máy có chúng:
+
+```bash
+python scripts/make_g2_files.py
+cd apps/web && pnpm exec playwright test
+```
 
 ## Dùng runner GPU `self-hosted`
 

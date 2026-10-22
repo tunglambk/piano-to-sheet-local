@@ -58,6 +58,23 @@ p2s transcribe sketch.wav -o out/ --preset fast --device cpu
 
 Presets: `accurate` (Transkun + Beat This! + M2ST), `fast` (no GPU model: rule quantiser), `song` (reserved). `p2s cache stats` shows the cache; `p2s weights verify` checks downloaded weights.
 
+## API and web UI
+
+`p2s serve` starts the API, the worker and the built web app on one port:
+
+```bash
+p2s serve --port 8765            # http://127.0.0.1:8765
+p2s serve --no-worker            # API only, e.g. while running the worker elsewhere
+```
+
+The web app has four screens: **Library** (job list, search, delete), **New job** (drag and drop, preset, name), **Processing** (per-stage progress from server-sent events, cancel) and **Workspace** (the sheet in the browser, playback synced to the measure being played, click a note to seek, export PDF/MusicXML/MIDI). Every string is translated to Vietnamese and English; the language switch is in the header.
+
+- API: `POST /api/v1/jobs`, `GET /api/v1/jobs/{id}`, `GET /api/v1/jobs/{id}/events` (SSE), `POST /api/v1/jobs/{id}/cancel`, `GET /api/v1/jobs/{id}/artifacts/{kind}`, `PATCH`/`DELETE /api/v1/jobs/{id}`, `GET /api/v1/engines`. OpenAPI is at `/api/docs`.
+- Sync data: `GET /api/v1/jobs/{id}/sync` returns the timemap (note id → seconds, plus every measure onset) and the SVG pages; the browser highlights by note id, so the sheet, the audio and the timemap always agree.
+- Jobs are persisted in SQLite (`data/p2s.db`) and each job runs in its own child process, so cancelling frees the GPU.
+
+The frontend lives in `apps/web` (React 18 + TypeScript + Vite). Build it with `pnpm -C apps/web install && pnpm -C apps/web build`; `p2s serve` picks up `apps/web/dist` when it exists.
+
 ## How it works
 
 ```

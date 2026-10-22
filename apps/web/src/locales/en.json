@@ -1,0 +1,45 @@
+{
+  "app": { "title": "P2S Local", "library": "Library", "new": "New job", "language": "Language" },
+  "library": {
+    "title": "Jobs",
+    "empty": "No jobs yet. Upload a recording to start.",
+    "search": "Search by name",
+    "name": "Name", "status": "Status", "preset": "Preset", "duration": "Duration", "actions": "Actions",
+    "open": "Open", "delete": "Delete", "new": "New job"
+  },
+  "new": {
+    "title": "New job",
+    "drop": "Drop an audio or video file here, or choose one",
+    "choose": "Choose file",
+    "preset": "Preset",
+    "preset_accurate": "Accurate (Transkun + Beat This! + M2ST)",
+    "preset_fast": "Fast (rule quantiser, no GPU model)",
+    "name": "Name (optional)",
+    "start": "Start transcription",
+    "uploading": "Uploading…"
+  },
+  "processing": {
+    "title": "Processing",
+    "waiting": "Waiting for the worker…",
+    "cancel": "Cancel",
+    "cancelled": "Cancelled",
+    "failed": "Failed",
+    "succeeded": "Done",
+    "open": "Open sheet",
+    "stages": "Stages",
+    "error": "Error"
+  },
+  "workspace": {
+    "title": "Workspace",
+    "play": "Play",
+    "measure": "Measure",
+    "export": "Export",
+    "warnings": "Warnings",
+    "no_warnings": "No warnings",
+    "engines": "Engines",
+    "loading": "Loading the sheet…",
+    "not_ready": "This job has no sheet yet.",
+    "pdf": "PDF", "musicxml": "MusicXML", "mxl": "Compressed MusicXML",
+    "mid": "Performance MIDI", "mid_quantized": "Quantised MIDI", "mei": "MEI", "timemap": "Timemap"
+  }
+}

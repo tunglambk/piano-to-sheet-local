@@ -83,3 +83,31 @@ jobs:
 
       - name: pytest (CPU, no GPU, no sidecars)
         run: python -m pytest -m "not gpu and not sidecar" -q
+
+  web:
+    name: web (typecheck, build, unit tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up Node 22 (pnpm via corepack)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@9 --activate
+
+      - name: Install
+        working-directory: apps/web
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (tsc + vite)
+        working-directory: apps/web
+        run: pnpm build
+
+      - name: Unit tests (vitest)
+        working-directory: apps/web
+        run: pnpm test

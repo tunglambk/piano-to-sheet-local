@@ -58,6 +58,23 @@ Thư mục `out/` sau đó chứa:
 
 Preset: `accurate` (Transkun + Beat This! + M2ST), `fast` (không dùng model GPU: lượng tử hoá theo luật), `song` (để dành). `p2s cache stats` xem cache; `p2s weights verify` kiểm tra trọng số đã tải.
 
+## API và web UI
+
+`p2s serve` chạy API, worker và web app đã build trên cùng một cổng:
+
+```bash
+p2s serve --port 8765            # http://127.0.0.1:8765
+p2s serve --no-worker            # chỉ API, khi worker chạy ở nơi khác
+```
+
+Web app có bốn màn hình: **Thư viện** (danh sách job, tìm kiếm, xoá), **Job mới** (kéo thả, preset, tên), **Đang xử lý** (tiến trình từng stage qua server-sent events, huỷ) và **Workspace** (bản nhạc ngay trên trình duyệt, phát audio khớp với ô nhịp đang chơi, bấm vào nốt để tua, xuất PDF/MusicXML/MIDI). Mọi chuỗi đều có tiếng Việt và tiếng Anh; nút đổi ngôn ngữ ở thanh trên.
+
+- API: `POST /api/v1/jobs`, `GET /api/v1/jobs/{id}`, `GET /api/v1/jobs/{id}/events` (SSE), `POST /api/v1/jobs/{id}/cancel`, `GET /api/v1/jobs/{id}/artifacts/{kind}`, `PATCH`/`DELETE /api/v1/jobs/{id}`, `GET /api/v1/engines`. OpenAPI ở `/api/docs`.
+- Dữ liệu đồng bộ: `GET /api/v1/jobs/{id}/sync` trả timemap (note id → giây, kèm onset của mọi ô nhịp) và các trang SVG; trình duyệt tô sáng theo note id nên bản nhạc, audio và timemap luôn khớp nhau.
+- Job lưu trong SQLite (`data/p2s.db`) và mỗi job chạy trong process con, nên huỷ là giải phóng GPU.
+
+Frontend ở `apps/web` (React 18 + TypeScript + Vite). Build bằng `pnpm -C apps/web install && pnpm -C apps/web build`; `p2s serve` tự dùng `apps/web/dist` khi thư mục đó tồn tại.
+
 ## Cách hoạt động
 
 ```

@@ -1,0 +1,45 @@
+{
+  "app": { "title": "P2S Local", "library": "Thư viện", "new": "Job mới", "language": "Ngôn ngữ" },
+  "library": {
+    "title": "Các job",
+    "empty": "Chưa có job nào. Tải một bản thu lên để bắt đầu.",
+    "search": "Tìm theo tên",
+    "name": "Tên", "status": "Trạng thái", "preset": "Preset", "duration": "Thời lượng", "actions": "Thao tác",
+    "open": "Mở", "delete": "Xoá", "new": "Job mới"
+  },
+  "new": {
+    "title": "Job mới",
+    "drop": "Kéo thả file audio hoặc video vào đây, hoặc chọn file",
+    "choose": "Chọn file",
+    "preset": "Preset",
+    "preset_accurate": "Chính xác (Transkun + Beat This! + M2ST)",
+    "preset_fast": "Nhanh (lượng tử hoá theo luật, không dùng model GPU)",
+    "name": "Tên (tuỳ chọn)",
+    "start": "Bắt đầu phiên âm",
+    "uploading": "Đang tải lên…"
+  },
+  "processing": {
+    "title": "Đang xử lý",
+    "waiting": "Đang chờ worker…",
+    "cancel": "Huỷ",
+    "cancelled": "Đã huỷ",
+    "failed": "Thất bại",
+    "succeeded": "Xong",
+    "open": "Mở bản nhạc",
+    "stages": "Các stage",
+    "error": "Lỗi"
+  },
+  "workspace": {
+    "title": "Workspace",
+    "play": "Phát",
+    "measure": "Ô nhịp",
+    "export": "Xuất",
+    "warnings": "Cảnh báo",
+    "no_warnings": "Không có cảnh báo",
+    "engines": "Engine",
+    "loading": "Đang tải bản nhạc…",
+    "not_ready": "Job này chưa có bản nhạc.",
+    "pdf": "PDF", "musicxml": "MusicXML", "mxl": "MusicXML nén",
+    "mid": "MIDI trình diễn", "mid_quantized": "MIDI lượng tử hoá", "mei": "MEI", "timemap": "Timemap"
+  }
+}

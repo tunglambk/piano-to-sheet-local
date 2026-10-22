@@ -114,6 +114,32 @@ def cmd_cache(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    import threading
+
+    import uvicorn
+
+    from p2s.api.app import create_app
+    from p2s.worker.worker import Worker
+
+    configure_logging(args.log_level)
+    data_dir = _data_dir(args)
+    web_dist = REPO_ROOT / "apps" / "web" / "dist"
+    app = create_app(data_dir, web_dist if web_dist.exists() else None)
+    worker: Worker | None = None
+    if not args.no_worker:
+        worker = Worker(data_dir)
+        thread = threading.Thread(target=worker.run, name="p2s-worker", daemon=True)
+        thread.start()
+    print(f"p2s {__version__}: serving on http://{args.host}:{args.port} (data: {data_dir})", file=sys.stderr)
+    try:
+        uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level.lower())
+    finally:
+        if worker is not None:
+            worker.stop()
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="p2s", description="Piano audio → two-staff sheet music, locally.")
     parser.add_argument("--version", action="version", version=f"p2s {__version__}")
@@ -141,6 +167,14 @@ def build_parser() -> argparse.ArgumentParser:
     weights.add_argument("action", choices=["verify"])
     weights.add_argument("--data-dir", default=None)
     weights.set_defaults(func=cmd_weights)
+
+    serve = sub.add_parser("serve", help="API, worker and web UI on one port")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8765)
+    serve.add_argument("--data-dir", default=None)
+    serve.add_argument("--no-worker", action="store_true", help="serve the API only")
+    serve.add_argument("--log-level", default="INFO")
+    serve.set_defaults(func=cmd_serve)
 
     cache = sub.add_parser("cache", help="cache inspection")
     cache.add_argument("action", choices=["stats"])
