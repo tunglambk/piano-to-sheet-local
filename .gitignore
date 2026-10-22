@@ -14,6 +14,9 @@ node_modules/
 apps/web/dist/
 apps/web/playwright-report/
 apps/web/test-results/
+apps/web/e2e/g2-files.json
+apps/web/*.tsbuildinfo
+apps/web/tsconfig.tsbuildinfo
 
 # Local data, weights, outputs — never commit (see AGENTS.md)
 /data/
