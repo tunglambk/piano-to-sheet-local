@@ -53,6 +53,7 @@ jobs:
           python -m pip install \
             "pydantic>=2.6" "PyYAML>=6" "httpx>=0.27" "numpy>=1.26" \
             "soundfile>=0.12" "verovio>=4.3" "pretty_midi>=0.2.10" \
+            "fastapi>=0.110" "sqlmodel>=0.0.21" "python-multipart>=0.0.9" \
             "pytest>=8" "pytest-timeout>=2.3" "ruff>=0.4" "pyright>=1.1"
 
       - name: Generate the licence-safe test fixture
