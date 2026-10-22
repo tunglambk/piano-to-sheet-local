@@ -1,0 +1,34 @@
+# User-facing presets (spec §3). Every value here is copied into the job manifest.
+
+presets:
+  accurate:            # GPU
+    separate: auto                     # S1 decides solo vs mix
+    separation_threshold: 0.8          # piano-stem energy ratio below this => mix
+    amt: [transkun_v2]                 # D-011: single engine until Phase 4 measures the ensemble
+    amt_ensemble:                      # disabled block; Phase 4 may enable it with numbers
+      enabled: false
+      engines: [transkun_v2, aria_amt]
+      onset_tolerance_ms: 50
+      vote: keep_if_both_or_high_velocity
+    beats: beat_this
+    score: m2st
+    fallback_score: rule_quant
+    pdf: musescore                     # falls back to verovio if MuseScore CLI is absent
+
+  fast:                # CPU only
+    separate: "off"
+    amt: [transkun_v2]
+    amt_device: cpu
+    beats: beat_this_small
+    score: rule_quant
+    pdf: verovio
+
+  song:                # songs with vocals / band
+    extends: accurate
+    separate: "on"
+
+defaults:
+  quantize_grid: "1/16"                # 1/8 | 1/16 | 1/32
+  allow_triplets: true
+  pedal_marks: true
+  dynamics_from_velocity: true

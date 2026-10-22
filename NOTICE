@@ -1,0 +1,42 @@
+P2S Local
+Copyright (c) 2026 Tung Lam
+
+This product is licensed under the PolyForm Noncommercial License 1.0.0
+(see LICENSE and https://polyformproject.org/licenses/noncommercial/1.0.0).
+It may be used, changed and shared for noncommercial purposes only. Commercial
+use requires a separate licence from the copyright holder.
+
+Third-party components
+----------------------
+
+P2S Local calls, links and ships third-party software under their own licences.
+The authoritative, per-version register (with evidence links) is
+configs/licenses.yaml; the weights register is configs/models.lock.
+
+  * Called as subprocesses, not bundled: ffmpeg (this build is GPL-2.0-or-later),
+    MuseScore Studio (GPL-3.0), FluidSynth (LGPL-2.1-or-later, dev only).
+  * Linked libraries include LGPL-3.0 (Verovio, cairosvg), LGPL-2.1-or-later
+    (soxr), Apache-2.0 (partitura, lightning, transformers, uvicorn,
+    python-multipart), MIT (pydantic, PyYAML, pretty_midi, fastapi, …) and
+    BSD-3-Clause (numpy, scipy, pandas, music21, httpx, soundfile, pypdf, …).
+  * Benchmark oracles used locally and never shipped: VeroSim, musicdiff
+    (no published licence — results cite them without redistribution).
+
+Model weights and datasets
+--------------------------
+
+No model weights and no audio or score datasets are distributed in this
+repository; they are downloaded separately under their own terms.
+Relevant constraints for v1:
+
+  * Transkun v2 and Beat This! — MIT code and weights.
+  * M2ST (TimFelixBeyer/MIDI2ScoreTransformer) — code and weights state no
+    licence. Internal, noncommercial evaluation only.
+  * Aria-AMT — Apache-2.0 code, CC BY-NC-SA 4.0 weights.
+  * PM2S — MIT code, CC BY 4.0 weights (Zendo record 10520196), benchmark only.
+  * MAESTRO and ASAP — CC BY-NC-SA 4.0 (audio and scores).
+  * MuseScore General / MS Basic soundfont — MIT.
+
+Because several of these are noncommercial (and one has no stated licence), the
+project as a whole is noncommercial. Relicensing for commercial use requires
+replacing or re-clearing every engine and dataset above first.

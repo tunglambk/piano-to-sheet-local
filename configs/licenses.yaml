@@ -1,0 +1,265 @@
+# configs/licenses.yaml — license register for tools, assets and (later) every
+# Python/npm dependency (D-013).
+#
+# Phase 0 scope: the external tools and the engine libraries actually used by the
+# spike. Phase 1 generates the complete dependency register from uv.lock and
+# pnpm-lock.yaml and adds scripts/check_licenses.py (D-013).
+#
+# Fields: name, kind (tool | library | asset | weights), version, license, scope
+# (runtime | bench | dev), usage (linked | subprocess | bundled-asset), evidence.
+# `unknown` is recorded explicitly, never omitted. Anything non-commercial is
+# flagged: v1 is internal/non-commercial (D-001).
+
+version: 1
+updated: 2026-10-22
+phase: 1
+
+entries:
+  # ---------------------------------------------------------------- tools
+  - name: ffmpeg
+    kind: tool
+    version: "5.0.1 (Ubuntu 22.04 build)"
+    license: "GPL-2.0-or-later (this build: --enable-gpl --enable-libx264)"
+    scope: runtime
+    usage: subprocess
+    evidence: "`ffmpeg -version` banner flags"
+    notes: >
+      Called as a subprocess, never linked. The Ubuntu build is GPL-enabled; a
+      redistributed image must not bundle it into a proprietary product without
+      review. P5 decides whether to ship an LGPL build instead.
+
+  - name: MuseScore Studio
+    kind: tool
+    version: "4.7.5 (build 260831071, AppImage extracted)"
+    license: GPL-3.0
+    scope: runtime
+    usage: subprocess
+    evidence: https://github.com/musescore/MuseScore/blob/master/LICENSE.md
+    notes: >
+      Headless CLI (`-o out.pdf score.musicxml`) for PDF rendering and MusicXML
+      validation. Not redistributed with P2S; the user installs their own copy.
+      The AppImage ships the MIT "MS Basic" soundfont, which is used for fixtures.
+
+  - name: FluidSynth
+    kind: tool
+    version: "2.5.x (conda-forge, .envs/base)"
+    license: LGPL-2.1-or-later
+    scope: dev
+    usage: subprocess
+    evidence: conda-forge recipe / upstream COPYING
+    notes: Renders synthetic smoke fixtures from MIDI. Dev-only, not needed at runtime.
+
+  - name: VeroSim
+    kind: tool
+    version: "main 2026-10-21 (verovio submodule 42a6b3eb, musicdiff f413e5e, cmake+ninja build)"
+    license: unknown (no LICENSE file in the repository)
+    scope: bench
+    usage: subprocess
+    evidence: https://github.com/btrkeks/verosim (repo has no LICENSE as of 2026-10-21)
+    notes: >
+      OMR-NED oracle for the benchmark and the Phase 0 reproduction check. Bench-only,
+      never shipped. P3a must record its license before publishing results; if none is
+      published, results cite the tool without redistributing it.
+
+  - name: Verovio
+    kind: library
+    version: "6.3.0 (Python bindings); C++ submodule inside VeroSim"
+    license: LGPL-3.0
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/rism-digital/verovio
+    notes: "Sheet rendering (SVG/MEI/timemap) in S8. LGPL: dynamic linking is required."
+
+  # ---------------------------------------------------------------- assets
+  - name: MS Basic soundfont
+    kind: asset
+    version: "MuseScore_General 0.2 (2020-05-13)"
+    license: MIT
+    scope: runtime
+    usage: bundled-asset
+    evidence: "share/mscore4portable-4.7/sound/MS Basic_License.md (FluidR3/FluidR3Mono/MuseScore_General, all MIT)"
+    notes: >
+      Ships inside the MuseScore bundle; P2S uses it for fixture rendering, P2S-Open
+      and the UI's synthesised playback. sha256 in bench/datasets/registry.yaml.
+
+  # ---------------------------------------------------------------- libraries
+  - name: PyTorch
+    kind: library
+    version: "2.14.1+cu130"
+    license: BSD-3-Clause
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/pytorch/pytorch/blob/main/LICENSE
+  - name: torchaudio
+    kind: library
+    version: "2.11.0"
+    license: BSD-2-Clause
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/pytorch/audio/blob/main/LICENSE
+  - name: soxr
+    kind: library
+    version: "1.1.0"
+    license: LGPL-2.1-or-later
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/dofuuz/python-soxr (LGPL, bundles libsoxr)
+    notes: >
+      LGPL-2.1-or-later, dynamically linked through python-soxr (used by
+      torchaudio/Transkun for resampling). Not modified and not bundled as a
+      separate binary; the LGPL notice ships in the Phase 5 packaging step.
+  - name: music21
+    kind: library
+    version: "9.2.0b3 (M2ST fork @0ed70bb); 10.5.0 in the co-install env"
+    license: BSD-3-Clause
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/cuthbertLab/music21/blob/master/LICENSE
+    notes: M2ST requires the fork; Phase 1 pins it inside the M2ST sidecar only.
+  - name: partitura
+    kind: library
+    version: "1.9.0"
+    license: Apache-2.0
+    scope: runtime
+    usage: linked
+    evidence: "installed metadata (License: Apache 2.0)"
+  - name: lightning
+    kind: library
+    version: "2.6.6"
+    license: Apache-2.0
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/Lightning-AI/pytorch-lightning/blob/master/LICENSE
+    notes: Only needed to load the M2ST checkpoint (sidecar).
+  - name: transformers / tokenizers
+    kind: library
+    version: "4.44.2 / 0.19.1"
+    license: Apache-2.0
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/huggingface/transformers/blob/main/LICENSE
+    notes: Pinned in the M2ST sidecar; newer versions reject the 2024 checkpoint.
+  - name: pydub
+    kind: library
+    version: "0.25.1"
+    license: MIT
+    scope: runtime
+    usage: linked
+    evidence: "installed metadata (License: MIT)"
+  - name: pydantic
+    kind: library
+    version: "2.x"
+    license: MIT
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/pydantic/pydantic/blob/main/LICENSE
+    notes: Every model that crosses a module, stage or sidecar boundary (D-023).
+  - name: PyYAML
+    kind: library
+    version: "6.x"
+    license: MIT
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/yaml/pyyaml/blob/main/LICENSE
+    notes: Reads configs/engines.yaml, presets.yaml, models.lock, licenses.yaml.
+  - name: httpx
+    kind: library
+    version: "0.28.x"
+    license: BSD-3-Clause
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/encode/httpx/blob/master/LICENSE.md
+    notes: Sidecar client (D-012). Loopback only; the runtime stays offline.
+  - name: cairosvg
+    kind: library
+    version: "2.9.x"
+    license: LGPL-3.0-or-later
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/Kozea/CairoSVG/blob/main/LICENSE
+    notes: >
+      Fallback PDF path (D-024) when MuseScore is missing: Verovio SVG pages are
+      converted and merged. LGPL-3.0, dynamically linked via cffi; unmodified, and
+      P5 ships the licence text alongside any bundle that includes it.
+  - name: pypdf
+    kind: library
+    version: "6.x"
+    license: BSD-3-Clause
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/py-pdf/pypdf/blob/main/LICENSE
+    notes: Merges the per-page PDFs produced by the SVG fallback.
+  - name: fastapi
+    kind: library
+    version: "0.11x"
+    license: MIT
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/fastapi/fastapi/blob/master/LICENSE
+    notes: Sidecar server (p2s/engines/sidecar_server.py) and, from P2, the API router.
+  - name: uvicorn
+    kind: library
+    version: "0.3x"
+    license: BSD-3-Clause
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/encode/uvicorn/blob/master/LICENSE.md
+    notes: ASGI server for the sidecars and the P2 API.
+  - name: python-multipart
+    kind: library
+    version: "0.0.x"
+    license: Apache-2.0
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/Kludex/python-multipart/blob/master/LICENSE.txt
+    notes: Upload form parsing for the P2 API.
+  - name: mido / pretty_midi
+    kind: library
+    version: "1.3.3 / 0.2.11"
+    license: MIT
+    scope: runtime
+    usage: linked
+    evidence: upstream pyproject/metadata
+  - name: soundfile
+    kind: library
+    version: "0.13.x"
+    license: BSD-3-Clause
+    scope: runtime
+    usage: linked
+    evidence: https://github.com/bastibe/python-soundfile/blob/master/LICENSE
+  - name: pandas / numpy / scipy
+    kind: library
+    version: "3.0.6 / 2.4.6 / 1.17.1"
+    license: BSD-3-Clause
+    scope: bench
+    usage: linked
+    evidence: installed metadata / project COPYING
+  - name: psutil
+    kind: library
+    version: "7.2.2"
+    license: BSD-3-Clause
+    scope: dev
+    usage: linked
+    evidence: installed metadata
+  - name: nvidia-ml-py
+    kind: library
+    version: "13.615.71"
+    license: BSD
+    scope: dev
+    usage: linked
+    evidence: installed metadata
+  - name: mir_eval
+    kind: library
+    version: "0.8.x"
+    license: MIT
+    scope: bench
+    usage: linked
+    evidence: https://github.com/craffel/mir_eval/blob/main/LICENSE.txt
+  - name: musicdiff
+    kind: library
+    version: "f413e5e9 (VeroSim oracle submodule)"
+    license: unknown (GitHub reports NOASSERTION)
+    scope: bench
+    usage: subprocess
+    evidence: https://github.com/gregchapman-dev/musicdiff
+    notes: Bench oracle only; not shipped, not linked into p2s/.

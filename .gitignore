@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.pyright/
+*.egg-info/
+dist/
+build/
+
+# Node / web
+node_modules/
+apps/web/dist/
+apps/web/playwright-report/
+apps/web/test-results/
+
+# Local data, weights, outputs — never commit (see AGENTS.md)
+/data/
+/models/*
+!/models/.gitkeep
+outputs/
+spike/**/outputs/
+bench/reports/**/raw/
+*.wav
+*.mp3
+*.mp4
+*.m4a
+*.flac
+*.webm
+*.mov
+*.safetensors
+*.pt
+*.ckpt
+*.onnx
+*.parquet
+
+# Env / secrets
+.env
+.env.*
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/settings.json
+spike/**/outputs/
+spike/**/envs/
+spike/**/.venv/
+.spike/
+.uv-cache/
+.uv-python/
+.venv/
+__pycache__/
+
+# Phase 0 local tooling (never committed)
+.envs/
+.tools/
+.mamba/
+.cache/
+.tmp/
+transcribe.log

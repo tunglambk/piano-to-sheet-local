@@ -1,0 +1,55 @@
+# Engine registry (spec §5.2). The worker only knows the Protocols in p2s/core/schemas.py;
+# swapping an engine = editing this file. Weights must exist in configs/models.lock.
+#
+# kind: inprocess -> imported into the worker; must share the core environment
+# kind: sidecar   -> separate container/venv behind GET /v1/info, GET /v1/health, POST /v1/infer
+# In-process vs sidecar for each engine is confirmed in Phase 0 (see DECISIONS D-006).
+
+engines:
+  separate:            # S2
+    htdemucs_6s:
+      kind: inprocess
+      module: p2s.engines.demucs:DemucsSeparator
+      model: htdemucs_6s
+      device: cuda
+
+  amt:                 # S3
+    transkun_v2:
+      kind: inprocess
+      module: p2s.engines.transkun:TranskunEngine
+      device: cuda
+    aria_amt:
+      kind: sidecar
+      url: http://aria-amt:8001
+      timeout_s: 600
+
+  beats:               # S4
+    beat_this:
+      kind: inprocess
+      module: p2s.engines.beat_this:BeatThis
+      checkpoint: final0
+    beat_this_small:
+      kind: inprocess
+      module: p2s.engines.beat_this:BeatThis
+      checkpoint: small0
+      device: cpu
+
+  score:               # S5
+    m2st:
+      kind: sidecar
+      url: http://m2st:8002
+      timeout_s: 900
+    pm2s:
+      kind: inprocess
+      module: p2s.engines.pm2s:PM2S
+      device: cpu
+    rule_quant:
+      kind: inprocess
+      module: p2s.engines.rulequant:RuleQuantizer   # always available, CPU only
+      device: cpu
+
+  e2e:                 # S5' (replaces S3-S5)
+    rubato:
+      kind: sidecar
+      url: http://rubato:8003
+      enabled: false   # DECISIONS D-005: only after weights + license are published

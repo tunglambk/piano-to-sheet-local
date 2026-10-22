@@ -1,0 +1,195 @@
+# configs/models.lock — every model weight P2S may download or load. YAML format.
+# Rules (AGENTS.md):
+#   - The app loads ONLY entries listed here and verifies sha256 before use.
+#   - code_license and weight_license are recorded separately; they can differ.
+#   - commercial_use: yes | no | unknown  (DECISIONS D-001; v1 is internal/non-commercial)
+#   - status: verified (Phase 0) | candidate | excluded
+#   - scope: app | bench | ui-asset (D-013). The app loads only scope: app entries.
+#
+# Phase 0 verification: every default-path engine was downloaded, hashed, licensed
+# and run (except htdemucs_6s, which is not on the G0 path). Evidence: the
+# `license_evidence` fields, `docs/reports/phase-0.md`, and spike/*/run.py.
+
+version: 2
+updated: 2026-10-21
+phase: 0
+
+entries:
+  - id: transkun_v2
+    stage: S3
+    upstream: https://github.com/Yujia-Yan/Transkun
+    scope: app
+    pinned:
+      package: transkun==2.0.1
+      wheel_sha256: 7d7f5bf88b0d21f7da0415b089cff3bcbcbdda4e1a3c9719964947942c859fe
+      wheel_url: https://files.pythonhosted.org/packages/a2/1f/1e04ac0f04583d593ecca935270401404ad45e88c9db7b249b67bde20a1b/transkun-2.0.1-py3-none-any.whl
+    weights:
+      - file: pretrained/2.0.pt
+        url: shipped inside the transkun 2.0.1 wheel (no separate download)
+        sha256: 50a80010effc2a59ffcd068a95cd2b29bd7f23a27a3515bc3ccd209c89a3d44c
+    code_license: MIT
+    weight_license: not stated separately (no LICENSE/model card for the checkpoint itself)
+    license_evidence: https://github.com/Yujia-Yan/Transkun/blob/main/LICENSE (MIT); PyPI wheel metadata declares no license field
+    training_data: MAESTRO (CC BY-NC-SA 4.0) plus internal augmentations (per the Transkun paper)
+    commercial_use: unknown
+    status: verified
+    notes: >
+      Spec §2.1 pins transkun==2.0.0; the published package is 2.0.1 (2024-09-28,
+      the only release on PyPI). Decision D-019 records the difference. The shipped
+      checkpoint is "V2 No Pedal Ext." (upstream README), so S3 pedal comes from
+      the separate ByteDance model or a rule-based default.
+
+  - id: aria_amt
+    stage: S3
+    upstream: https://github.com/EleutherAI/aria-amt
+    scope: app
+    pinned:
+      commit: cloned 2026-10-21 from main (no tag); package version 0.0.1
+    weights:
+      - file: piano-medium-double-1.0.safetensors
+        url: https://huggingface.co/datasets/loubb/aria-midi/resolve/main/piano-medium-double-1.0.safetensors
+        sha256: 089d3129dbe93246aeda55efe668c8a48af08afaf9dd15c64cef0a07c0fb30a4
+    code_license: Apache-2.0
+    weight_license: CC-BY-NC-SA-4.0
+    license_evidence: "https://github.com/EleutherAI/aria-amt (Apache-2.0); https://huggingface.co/datasets/loubb/aria-midi dataset card (license: cc-by-nc-sa-4.0)"
+    training_data: Aria-MIDI dataset (HF loubb/aria-midi); upstream flags it as preliminary
+    commercial_use: "no"
+    status: verified
+    notes: >
+      Sidecar per D-006. Requires CUDA (the package asserts a GPU) and Python 3.11.
+      Non-commercial weights: shown with a warning on the Engines page (D-001).
+
+  - id: beat_this
+    stage: S4
+    upstream: https://github.com/CPJKU/beat_this
+    scope: app
+    pinned:
+      package: beat-this==1.1.0
+      wheel_sha256: 3f2b2d1e027c6dac380bf80c71555e3c28a4036a7f1af20129a945915a72a645
+    weights:
+      - file: final0.ckpt
+        url: https://cloud.cp.jku.at/public.php/dav/files/7ik4RrBKTS273gp/final0.ckpt
+        sha256: 8c328b45f59d8dd3dff219253ff6a8d6482be57d0133a29140e2febbf8eb8331
+      - file: small0.ckpt
+        url: https://cloud.cp.jku.at/public.php/dav/files/7ik4RrBKTS273gp/small0.ckpt
+        sha256: 6074be2c4d490c5f6101fcc374a1ec72ae93456e23bb6019783b849f5dc7d47b
+    code_license: MIT
+    weight_license: MIT
+    license_evidence: https://github.com/CPJKU/beat_this README §License ("code and the published model weights are released under the MIT license")
+    training_data: beat-tracking corpora listed upstream; README warns some training files are copyrighted or under limited CC licences
+    commercial_use: "yes"   # weights MIT; upstream warns some training files are copyrighted/limited-CC
+    status: verified
+    notes: final0 on GPU, small0 on CPU for the `fast` preset (runtime/VRAM in the Phase 0 report).
+
+  - id: pm2s
+    stage: S5
+    upstream: https://github.com/Cheriell/PM2S
+    scope: bench
+    pinned:
+      commit: 9586f91cd16aaa50dbb82f720f6a34a3e0186f47 (2024-10-10)
+    weights:
+      - file: pm2s/_model_state_dicts/beat/RNNJointBeatModel.pth
+        url: https://zenodo.org/records/10520196/files/RNNJointBeatModel.pth?download=1
+        sha256: 939e0181f119a473200aece6307906e3dee69d4e2c44abcc878755bf6a18beb6
+      - file: pm2s/_model_state_dicts/quantisation/RNNJointQuantisationModel.pth
+        url: https://zenodo.org/records/10520196/files/RNNJointQuantisationModel.pth?download=1
+        sha256: ebbb56c952e4a178e85c53a01a0b055ca9ed8ed221d8cac7dac1ca0ff74639eb
+      - file: pm2s/_model_state_dicts/hand_part/RNNHandPartModel.pth
+        url: https://zenodo.org/records/10520196/files/RNNHandPartModel.pth?download=1
+        sha256: 35d0b768fc68f9ec23f77b512ce3cada9b4e9dd816e3ab1c2a1714fa05bc5805
+      - file: pm2s/_model_state_dicts/key_signature/RNNKeySignatureModel.pth
+        url: https://zenodo.org/records/10520196/files/RNNKeySignatureModel.pth?download=1
+        sha256: 62ce9004f9a8b3bf24864a5bf15211e1a27c7d2c1eb7071e6672d6d8e265e5de
+      - file: pm2s/_model_state_dicts/time_signature/CNNTimeSignatureModel.pth
+        url: https://zenodo.org/records/10520196/files/CNNTimeSignatureModel.pth?download=1
+        sha256: 35cd59c456542c1546f870ee639e0c3f87f7b81a48d7f2bfe10dedc89c4d3180
+    code_license: MIT
+    weight_license: CC-BY-4.0
+    license_evidence: https://github.com/Cheriell/PM2S/blob/main/LICENSE (MIT); Zenodo 10.5281/zenodo.10520196 metadata license cc-by-4.0
+    training_data: A-MAPS performance MIDI (MAPS-derived); ASAP-derived annotations per the ISMIR 2022 paper
+    commercial_use: "unknown"   # weights CC BY 4.0; training data (MAPS) is non-commercial — internal/eval only
+    status: verified
+    notes: >
+      Scope bench: PM2S is the S5 alternative for benchmark comparisons (spec §6.3),
+      not on the default path (D-004). Runs on CPU; no pinned torch version needed.
+
+  - id: m2st
+    stage: S5
+    upstream: https://github.com/TimFelixBeyer/MIDI2ScoreTransformer
+    scope: app
+    pinned:
+      commit: 2026-10-21 main (repo has no tags); model release v0.0.1
+      python: "3.11"
+      transformers: "4.44.2 (checkpoint-era pin; newer versions reject the pickled config)"
+    weights:
+      - file: MIDI2ScoreTF.ckpt
+        url: https://github.com/TimFelixBeyer/MIDI2ScoreTransformer/releases/download/v0.0.1/MIDI2ScoreTF.ckpt
+        sha256: 7b8ec6e3da365b97443fb67a8f0b37d63997e93c152d665d43cb2011245db638
+    code_license: not stated (no LICENSE file in the repo as of 2026-10-21)
+    weight_license: not stated
+    license_evidence: repo root has no LICENSE; release notes carry no license field
+    training_data: closed MuseScore corpus plus ASAP (M2ST saw 98/102 ASAP test pieces per D-017)
+    commercial_use: unknown
+    status: verified
+    notes: >
+      Sidecar per D-006 (pinned torch/transformers + MuseScore for some utilities).
+      Unknown code/weight license is covered by D-001 (internal, non-commercial) and
+      must be re-checked before any commercial use.
+
+  - id: htdemucs_6s
+    stage: S2
+    upstream: https://github.com/facebookresearch/demucs
+    scope: app
+    pinned:
+      package: demucs==4.1.0
+      wheel_sha256: 4916a804702033ce934a6cdfa7e38dde03f7a7a6e85f41d0120eefe9e2966758
+    weights:
+      - file: htdemucs_6s
+        url: downloaded by torch.hub from the demucs remote list on first use
+        sha256: not captured in Phase 0 (not on the G0 path; smoke run deferred to Phase 1)
+    code_license: MIT
+    weight_license: not stated separately (repo LICENSE covers the code; the checkpoint has no separate model card)
+    license_evidence: https://github.com/facebookresearch/demucs/blob/main/LICENSE (MIT)
+    training_data: not stated in the repo
+    commercial_use: unknown
+    status: candidate
+    notes: S2 is out of Phase 0 smoke scope; P1 must capture the checkpoint URL and sha256.
+
+  - id: rule_quant
+    stage: S5
+    upstream: internal (p2s/engines/rulequant)
+    scope: app
+    pinned:
+      version: "0.1.0"
+    weights: []
+    code_license: MIT
+    weight_license: none (no pretrained weights)
+    license_evidence: this repository
+    training_data: none
+    commercial_use: "yes"
+    status: verified
+    notes: >
+      Rule-based quantiser: the always-available S5 fallback and the `fast` preset's
+      score builder (D-004). No weights, CPU only, deterministic.
+
+  - id: bs_roformer_sw
+    stage: S2
+    upstream: unknown
+    scope: bench
+    weights: [{file: TBD, url: TBD, sha256: TBD}]
+    code_license: TBD
+    weight_license: unknown
+    commercial_use: unknown
+    status: excluded
+    notes: Excluded until the weight license is known (spec §2.5).
+
+  - id: rubato
+    stage: S5'
+    upstream: not released (Tamer et al., arXiv 2605.24291)
+    scope: app
+    weights: [{file: TBD, url: TBD, sha256: TBD}]
+    code_license: not released
+    weight_license: not released
+    commercial_use: unknown
+    status: excluded
+    notes: D-005 — optional plugin, disabled by default; re-check at publication.

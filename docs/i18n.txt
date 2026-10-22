@@ -1,0 +1,7 @@
+# Documents that ship in both languages in the public mirror (D-030).
+# English (X.md) is the default and authoritative version; X.vi.md is the
+# Vietnamese translation. Listing a document here makes scripts/check_docs.py
+# require the counterpart and the language switcher in both files.
+README.md
+docs/p2s-spec.md
+docs/ci.md

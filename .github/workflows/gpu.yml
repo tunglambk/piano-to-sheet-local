@@ -1,0 +1,42 @@
+name: gpu
+
+# Optional GPU + sidecar gate (D-026). GitHub-hosted runners have no CUDA and no
+# pinned weights, so this job only runs on a self-hosted runner that has:
+#   * a CUDA GPU (Phase 1 targets one A100 80 GB, CUDA_DEVICE_INDEX selects it),
+#   * the repo checked out with `data/` and `models/` populated (see docs/dev-setup.md),
+#   * the Python environments from Phase 0/1 (.envs/coinstall, .envs/m2st),
+#   * the M2ST sidecar reachable on 127.0.0.1:8002.
+#
+# It is manual-only and does nothing until such a runner is registered with the
+# labels below (set the repository variable GPU_RUNNER_LABELS as a JSON array to
+# change them).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gpu-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gpu:
+    name: gpu (contract tests, sidecar)
+    runs-on: ${{ fromJSON(vars.GPU_RUNNER_LABELS || '["self-hosted","gpu"]') }}
+    timeout-minutes: 60
+    env:
+      CUDA_DEVICE_INDEX: "0"
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Verify the runner has the local assets
+        run: |
+          test -x .envs/coinstall/bin/python || { echo "missing .envs/coinstall"; exit 1; }
+          test -d models && test -d data || { echo "missing models/ or data/"; exit 1; }
+          curl -fsS http://127.0.0.1:8002/v1/health
+
+      - name: Local gate with GPU and sidecar suites
+        run: bash scripts/ci.sh --gpu

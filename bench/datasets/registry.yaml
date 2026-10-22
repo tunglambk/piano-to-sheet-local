@@ -1,0 +1,148 @@
+# bench/datasets/registry.yaml — every dataset and render asset P2S may download (D-013).
+#
+# Rules:
+#   - Downloads come only from this registry; hashes are verified after download.
+#   - `allowed_use` is bounded by D-001 (v1 is internal, non-commercial) and D-015
+#     (public data + locally generated synthetic data only; no scraping).
+#   - `status`: verified (downloaded and checked) | planned (deferred to a later
+#     phase) | excluded (license forbids the planned use, or no legal access).
+#   - Only dataset metadata files under bench/ are committed; audio, MIDI and
+#     weights stay in data/ (gitignored).
+
+version: 1
+updated: 2026-10-21
+phase: 0
+
+entries:
+  - name: maestro_v3_midi
+    content: MAESTRO v3.0.0 MIDI + metadata CSV (1276 performances, 962/137/177 train/val/test)
+    source_url: https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0-midi.zip
+    version: v3.0.0 (2020-11-27)
+    archive_sha256: 70470ee253295c8d2c71e6d9d4a815189e35c89624b76d22fce5a019d5dde12c
+    archive_md5_b64: t2VlidD/jxFw0T9pg3OQug==
+    license: CC BY-NC-SA 4.0
+    license_evidence: 'https://magenta.tensorflow.org/datasets/maestro ("License: CC BY-NC-SA 4.0")'
+    allowed_use: evaluation and internal development only (non-commercial)
+    scope: app-testdata
+    status: verified
+    local_path: data/datasets/maestro-v3.0.0-midi.zip
+    notes: Source of dev/test splits per D-010 (official validation = dev, official test = report).
+
+  - name: maestro_v3_audio
+    content: MAESTRO v3.0.0 Disklavier audio (44.1 kHz, 16-bit stereo WAV, ~108 GB zip)
+    source_url: https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0.zip
+    version: v3.0.0 (2020-11-27)
+    archive_sha256: not computed (108 GB archive; extracted by HTTP range requests)
+    archive_md5_b64: QZQavc14bIBm1TIALjt5uQ==
+    license: CC BY-NC-SA 4.0
+    license_evidence: https://magenta.tensorflow.org/datasets/maestro
+    allowed_use: evaluation and internal development only (non-commercial)
+    scope: app-testdata
+    status: verified
+    local_path: data/datasets/maestro-v3.0.0-audio/
+    member_manifest: data/datasets/maestro-selection.json
+    notes: >
+      Only 35 members were fetched (10 validation excerpts + 1 long validation
+      recording + the 25 ASAP-Beyer performances). Each member's sha256 is in
+      maestro-selection.json; the extractor is a local helper script that is not part of the published tree.
+
+  - name: asap
+    content: ASAP dataset (222 scores, 1068 performances) — scores, MIDI, beat/key annotations
+    source_url: https://github.com/fosfrancesco/asap-dataset
+    version: commit afc815c75c42e83a79c03feb6da8a35e77d4c6b8 (2023-06-15)
+    archive_sha256: n/a (git clone; 449 MB)
+    license: CC BY-NC-SA 4.0
+    license_evidence: asap-dataset/LICENSE.md, README.md §License
+    allowed_use: evaluation and internal development only (non-commercial)
+    scope: app-testdata
+    status: verified
+    local_path: data/datasets/asap-dataset/
+    notes: >
+      M2ST's README points at TimFelixBeyer/asap-dataset commit 8cba199 as the
+      corrected copy used in the paper. The 25 ASAP-Beyer test performances map
+      cleanly through this clone's metadata.csv, so Phase 0 uses it; P3a should
+      re-check the 8cba199 fixes before the final numbers.
+
+  - name: acpas_metadata
+    content: ACPAS metadata CSVs (metadata_R.csv, metadata_S.csv) — pointers + piece ids + splits
+    source_url: https://cheriell.github.io/research/ACPAS_dataset/
+    version: 2021-10-07
+    archive_sha256: n/a (two CSVs; see sha256 below)
+    file_sha256:
+      metadata_R.csv: 7d7312a30f7ec435cd3b3755a2c8fb21f123e1915ebb4ddfa5591f91f2dcd491
+      metadata_S.csv: 19738e5d608d8a40e563fb178ce1f45693ec049620c6117a236041e1e1b74e2c
+    license: unknown (metadata only; no audio distributed here)
+    license_evidence: ACPAS page states no license field as of 2026-10-21
+    allowed_use: benchmark-only metadata (piece ids + official M2ST test list)
+    scope: bench
+    status: verified
+    local_path: data/datasets/ACPAS-dataset/
+    notes: >
+      Used only to reproduce the M2ST test-piece selection (TEST_PIECE_IDS in
+      MIDI2ScoreTransformer/midi2scoretransformer/constants.py). No ACPAS audio
+      is downloaded; licence unknown, so nothing derived from it ships.
+
+  - name: atep_b
+    content: ATEPP (11674 performances, MIDI transcriptions + scores for ~43%)
+    source_url: https://github.com/tangjjbetsy/ATEPP
+    version: 1.2
+    archive_sha256: n/a (Google Drive download; not fetched in Phase 0)
+    license: CC BY 4.0 (dataset), CC0-1.0 (repo metadata)
+    license_evidence: ATEPP README §License
+    allowed_use: excluded for audio-dependent evaluation (the dataset distributes transcriptions and scores, not the original recordings)
+    scope: bench
+    status: excluded
+    local_path: n/a
+    notes: >
+      The audio is commercial recordings; only the automated transcriptions are
+      distributed. That triggers the D-015 fallback (ASAP-Beyer) for the
+      reproduction check and re-anchored v1 targets (D-015 §6-7).
+
+  - name: ms_basic_soundfont
+    content: '"MS Basic.sf3" piano soundfont shipped with MuseScore 4.7.5'
+    source_url: bundled with MuseScore-Studio-4.7.5-x86_64.AppImage
+    version: MuseScore_General 0.2 (2020-05-13), scaled-down build
+    archive_sha256: 5ea2375e8bd7d8e71def1036978c1621e85b66934169b6a2744b27b9b3c2d99c
+    license: MIT (FluidR3 / FluidR3Mono / MuseScore_General all MIT)
+    license_evidence: share/mscore4portable-4.7/sound/MS Basic_License.md (bundled)
+    allowed_use: fixture rendering, P2S-Open rendering, UI synthesised playback
+    scope: runtime
+    status: verified
+    local_path: .tools/mscore/share/mscore4portable-4.7/sound/MS Basic.sf3
+    notes: Kept outside the repo (GPL-3.0 MuseScore bundle); users get their own copy via MuseScore.
+
+  - name: musescore
+    content: MuseScore Studio 4.7.5 AppImage (headless PDF rendering, CLI import checks)
+    source_url: https://github.com/musescore/MuseScore/releases/tag/v4.7.5
+    version: 4.7.5 (build 260831071)
+    archive_sha256: pending
+    license: GPL-3.0
+    license_evidence: https://github.com/musescore/MuseScore/blob/master/LICENSE.md
+    allowed_use: local tool (subprocess); not linked into P2S
+    scope: runtime
+    status: verified
+    local_path: .tools/mscore/
+    notes: Extracted AppImage; QT_QPA_PLATFORM=offscreen works. Never redistributed.
+
+# Deferred to Phase 1 / P3a (D-015, plans/README.md §2) — no download yet.
+planned:
+  - name: p2s_open_sources
+    content: PDMX, KernScores, POP909 scores for P2S-Open
+    license: per item; to be checked before use
+    status: planned
+  - name: slakh_subset
+    content: Slakh2100 subset (multitrack mixes for the `mixed` condition)
+    license: reported CC BY 4.0; verify
+    status: planned
+  - name: room_impulse_responses
+    content: RIRs for the `phone` condition
+    license: per item
+    status: planned
+  - name: piano_sample_libraries
+    content: at least one more piano timbre for P2S-Open timbre variety
+    license: per item
+    status: planned
+  - name: maps
+    content: MAPS ENSTDkCl/Am + A-MAPS scores (out-of-distribution L1)
+    license: check whether a request form is required (reserved human action)
+    status: planned
