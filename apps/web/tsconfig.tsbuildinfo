@@ -1,1 +1,0 @@
-{"root":["./src/App.tsx","./src/api.ts","./src/i18n.ts","./src/main.tsx","./src/lib/timemap.test.ts","./src/lib/timemap.ts","./src/pages/Library.tsx","./src/pages/NewJob.tsx","./src/pages/Processing.tsx","./src/pages/Workspace.tsx","./e2e/g2-flow.spec.ts","./e2e/happy.spec.ts","./vite.config.ts","./playwright.config.ts","./vitest.config.ts"],"version":"5.9.3"}
