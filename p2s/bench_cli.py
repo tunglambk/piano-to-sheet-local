@@ -31,6 +31,7 @@ def _items(suite: str, limit: int) -> list[dict]:
                     "id": entry["item_id"],
                     "audio": item_dir / "audio.wav",
                     "gt_score": item_dir / "score.musicxml",
+                    "gt_performance": item_dir / "performance.mid",
                     "condition": entry["condition"],
                 }
             )
@@ -38,7 +39,9 @@ def _items(suite: str, limit: int) -> list[dict]:
     raise P2SError(f"unknown suite {suite!r} (Phase 1 knows p2s_open_dev and p2s_open_test)")
 
 
-def _run_preset(item: dict, preset: str, sidecar: str | None, device: str | None = None) -> Path | None:
+def _run_preset(
+    item: dict, preset: str, sidecar: str | None, device: str | None = None
+) -> tuple[Path, Path] | None:
     from p2s.core.config import load_config
     from p2s.core.pipeline import Pipeline
 
@@ -47,10 +50,10 @@ def _run_preset(item: dict, preset: str, sidecar: str | None, device: str | None
         config.engines.engines["score"]["m2st"].url = sidecar
     pipeline = Pipeline(config, DATA, job_id=item["id"], device=device)
     result = pipeline.run(item["audio"], preset)
-    return result.artifact("score.musicxml")
+    return result.artifact("score.musicxml"), result.artifact("performance.mid")
 
 
-def _run_baseline(item: dict) -> Path | None:
+def _run_baseline(item: dict) -> tuple[Path, Path] | None:
     import tempfile
 
     from bench.systems.transkun_musescore import to_musicxml
@@ -63,7 +66,81 @@ def _run_baseline(item: dict) -> Path | None:
     midi = result.artifact("performance.mid")
     tmp = Path(tempfile.mkdtemp())
     out = tmp / "baseline.musicxml"
-    return out if to_musicxml(midi, out) else None
+    return (out, midi) if to_musicxml(midi, out) else None
+
+
+def _extra_metrics(item: dict, produced: tuple[Path, Path] | None) -> tuple[dict, float | None]:
+    """L2 against the item's own performance, L4 against the item's recording.
+
+    Both references belong to the item, never to the system under test: the
+    reference performance ships with P2S-Open (`performance.mid`) and the
+    recording with the item (`audio.wav`).
+    """
+    if produced is None:
+        return {}, None
+    musicxml, performance_mid = produced
+    note_scores: dict = {}
+    reference_midi = Path(item.get("gt_performance") or "")
+    try:
+        from bench.metrics.l2_notes import evaluate as note_evaluate
+
+        reference = _performance_from_midi(reference_midi)
+        predicted = _performance_from_midi(performance_mid)
+        if reference is not None and predicted is not None:
+            note_scores = note_evaluate(predicted, reference)
+    except Exception:  # noqa: BLE001 - a missing reference is a gap, not a crash
+        note_scores = {}
+    playback = None
+    try:
+        import tempfile
+
+        from bench.metrics.l4_playback import evaluate as playback_evaluate
+
+        if musicxml is not None:
+            with tempfile.TemporaryDirectory() as tmp:
+                playback = playback_evaluate(musicxml.read_bytes(), Path(item["audio"]), Path(tmp))[
+                    "similarity"
+                ]
+    except Exception:  # noqa: BLE001 - rendering is optional
+        playback = None
+    return note_scores, playback
+
+
+def _performance_from_midi(path: Path):
+    """Read a MIDI file as a Performance (same shape the pipeline produces)."""
+    import pretty_midi
+
+    from p2s.core.schemas import EngineInfo, NoteEvent, Performance
+
+    try:
+        midi = pretty_midi.PrettyMIDI(str(path))
+    except Exception:  # noqa: BLE001 - a broken reference is a gap, not a crash
+        return None
+    notes = [
+        NoteEvent(
+            pitch=int(note.pitch),
+            onset=float(note.start),
+            offset=float(note.end),
+            velocity=int(note.velocity),
+        )
+        for instrument in midi.instruments
+        for note in instrument.notes
+    ]
+    if not notes:
+        return None
+    return Performance(
+        notes=notes,
+        engine=EngineInfo(
+            id="midi-file",
+            version="1",
+            weights_sha256={},
+            code_license="n/a",
+            weight_license="n/a",
+            commercial_use="yes",
+            device="cpu",
+            kind="inprocess",
+        ),
+    )
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -81,11 +158,13 @@ def cmd_run(args: argparse.Namespace) -> int:
         try:
             if args.system.startswith("p2s"):
                 preset = args.system.split(":", 1)[1] if ":" in args.system else "accurate"
-                musicxml = _run_preset(item, preset, args.sidecar, args.device)
+                produced = _run_preset(item, preset, args.sidecar, args.device)
             else:
-                musicxml = _run_baseline(item)
+                produced = _run_baseline(item)
+            musicxml = produced[0] if produced else None
             value = omr_ned(musicxml, item["gt_score"]) if musicxml else None
             status = "ok" if value is not None else "fail"
+            note_scores, playback = _extra_metrics(item, produced)
         except P2SError as exc:
             value, status = None, f"error: {exc}"
         values[item["id"]] = value
@@ -95,6 +174,9 @@ def cmd_run(args: argparse.Namespace) -> int:
                 "condition": item.get("condition"),
                 "status": status,
                 "omr_ned": value,
+                "note_f1": note_scores.get("note_f1"),
+                "onset_f1": note_scores.get("onset_f1"),
+                "playback": playback,
                 "seconds": round(time.perf_counter() - started, 1),
             }
         )
