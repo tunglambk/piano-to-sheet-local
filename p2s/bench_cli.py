@@ -26,12 +26,16 @@ def _items(suite: str, limit: int) -> list[dict]:
         out = []
         for entry in items:
             item_dir = REPO_ROOT / entry["path"]
+            meta_path = item_dir / "meta.json"
+            meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
             out.append(
                 {
                     "id": entry["item_id"],
                     "audio": item_dir / "audio.wav",
                     "gt_score": item_dir / "score.musicxml",
                     "gt_performance": item_dir / "performance.mid",
+                    "start_s": float(entry.get("start_s") or meta.get("start_s") or 0.0),
+                    "duration_s": float(meta.get("duration_s") or 0.0),
                     "condition": entry["condition"],
                 }
             )
@@ -81,10 +85,13 @@ def _extra_metrics(item: dict, produced: tuple[Path, Path] | None) -> tuple[dict
     musicxml, performance_mid = produced
     note_scores: dict = {}
     reference_midi = Path(item.get("gt_performance") or "")
+    start_s = float(item.get("start_s") or 0.0)
     try:
         from bench.metrics.l2_notes import evaluate as note_evaluate
 
-        reference = _performance_from_midi(reference_midi)
+        reference = _performance_from_midi(
+            reference_midi, start_s=start_s, duration_s=float(item.get("duration_s") or 0.0) or None
+        )
         predicted = _performance_from_midi(performance_mid)
         if reference is not None and predicted is not None:
             note_scores = note_evaluate(predicted, reference)
@@ -106,7 +113,7 @@ def _extra_metrics(item: dict, produced: tuple[Path, Path] | None) -> tuple[dict
     return note_scores, playback
 
 
-def _performance_from_midi(path: Path):
+def _performance_from_midi(path: Path, start_s: float = 0.0, duration_s: float | None = None):
     """Read a MIDI file as a Performance (same shape the pipeline produces)."""
     import pretty_midi
 
@@ -116,15 +123,18 @@ def _performance_from_midi(path: Path):
         midi = pretty_midi.PrettyMIDI(str(path))
     except Exception:  # noqa: BLE001 - a broken reference is a gap, not a crash
         return None
+    # P2S-Open items are excerpts of a longer performance: the reference MIDI has
+    # to be cropped to the item window and rebased to zero before comparing.
     notes = [
         NoteEvent(
             pitch=int(note.pitch),
-            onset=float(note.start),
-            offset=float(note.end),
+            onset=float(note.start - start_s),
+            offset=float(note.end - start_s),
             velocity=int(note.velocity),
         )
         for instrument in midi.instruments
         for note in instrument.notes
+        if note.start - start_s >= -1e-6 and (duration_s is None or note.start - start_s < duration_s)
     ]
     if not notes:
         return None
