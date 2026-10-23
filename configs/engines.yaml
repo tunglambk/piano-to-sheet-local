@@ -40,7 +40,7 @@ engines:
   score:               # S5
     m2st:
       kind: sidecar
-      url: http://m2st:8002
+      url: http://127.0.0.1:8002
       timeout_s: 900
     pm2s:
       kind: inprocess

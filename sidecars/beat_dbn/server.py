@@ -73,7 +73,7 @@ class BeatDBNEngine:
 
         return EngineInfo(
             id="beat_dbn",
-            version="beat-this+dbn",
+            version="beat-this+dbn.3",
             weights_sha256={CHECKPOINT.name: "see configs/models.lock"},
             code_license="MIT (beat_this) + BSD (madmom)",
             weight_license="MIT",
