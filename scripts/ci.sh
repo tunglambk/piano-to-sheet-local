@@ -30,7 +30,7 @@ CUDA_VISIBLE_DEVICES="" "$PY" -m pytest -m "not gpu and not sidecar" || status=1
 
 if command -v pnpm >/dev/null 2>&1 && [[ -d apps/web/node_modules ]]; then
   echo "== web (typecheck, build, unit tests)"
-  (cd apps/web && pnpm build >/dev/null && pnpm test --silent) || status=1
+  (cd apps/web && pnpm build >/dev/null && ./node_modules/.bin/vitest run >/dev/null) || status=1
 fi
 
 if [[ "${1:-}" == "--gpu" ]]; then

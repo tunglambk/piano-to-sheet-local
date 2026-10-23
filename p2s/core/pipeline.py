@@ -298,6 +298,7 @@ class Pipeline:
                 parents=["s3_amt", "s4_beats"],
                 producer=produce_score,
             )
+        score_stage = "s5_score_fallback" if "s5_score" not in self.stage_keys else "s5_score"
         score = ScoreDoc.model_validate(payload)
         self.warnings.extend(score.warnings)
 
@@ -308,7 +309,7 @@ class Pipeline:
             engine_version=__version__,
             weights={},
             params={},
-            parents=["s5_score" if "s5_score" in self.stage_keys else "s5_score_fallback"],
+            parents=[score_stage],
             producer=lambda tmp, final: postprocess(score).model_dump(mode="json"),
         )
         score = ScoreDoc.model_validate(payload)

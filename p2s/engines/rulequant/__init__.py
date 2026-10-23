@@ -6,6 +6,7 @@ meter → two-staff MusicXML with deterministic note ids (`n{staff}-{measure}-{i
 
 from __future__ import annotations
 
+import statistics
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -112,6 +113,22 @@ class RuleQuantizer(EngineBase):
             span = max(n.offset for n in perf.notes) - t0
             beats = [t0 + i * 0.5 for i in range(int(span / 0.5) + 3)]
         beats_per_bar = 4
+        # The downbeats decide both the bar length and where the first bar starts:
+        # taking the meter from the time signature alone put bar lines on the wrong
+        # beat whenever the piece starts on an anacrusis (D-035).
+        phase_beats = 0
+        if len(grid.downbeats) >= 3:
+            indices: list[int] = []
+            for downbeat in grid.downbeats:
+                nearest = min(range(len(beats)), key=lambda i: abs(beats[i] - downbeat))
+                indices.append(nearest)
+            gaps = [b - a for a, b in zip(indices, indices[1:], strict=False) if 1 <= b - a <= 12]
+            if gaps:
+                gaps.sort()
+                candidate = int(round(statistics.median(gaps)))
+                if candidate >= 2:
+                    beats_per_bar = candidate
+                    phase_beats = indices[0] % beats_per_bar
         if grid.time_signatures:
             try:
                 beats_per_bar = int(grid.time_signatures[0][1].split("/")[0])
@@ -135,7 +152,8 @@ class RuleQuantizer(EngineBase):
         step = divisions / sub
 
         def snap(t: float) -> int:
-            return int(round(beat_pos(t) * divisions / step) * step)
+            tick = int(round(beat_pos(t) * divisions / step) * step) - phase_beats * divisions
+            return max(0, tick)
 
         notes: list[QuantizedNote] = []
         for note in perf.notes:

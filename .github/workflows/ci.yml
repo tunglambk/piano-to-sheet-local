@@ -111,4 +111,4 @@ jobs:
 
       - name: Unit tests (vitest)
         working-directory: apps/web
-        run: pnpm test
+        run: ./node_modules/.bin/vitest run
