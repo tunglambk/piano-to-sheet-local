@@ -98,16 +98,9 @@ class BeatDBNEngine:
         _, beats, downbeats = best
         # Keep a time signature like the in-process engine does: S5/S6 use it for the
         # score's metre, and dropping it changes the engraving rather than the sync.
-        beats_per_bar = 4
-        counts: dict[int, int] = {}
-        for previous, current in zip(downbeats, downbeats[1:], strict=False):
-            n = sum(1 for beat in beats if previous - 1e-6 <= beat < current - 1e-6)
-            if 2 <= n <= 12:
-                counts[n] = counts.get(n, 0) + 1
-        if counts:
-            beats_per_bar = max(counts.items(), key=lambda item: item[1])[0]
-        signature = [(downbeats[0] if downbeats else beats[0], f"{beats_per_bar}/4")] if beats else []
-        return BeatGrid(beats=beats, downbeats=downbeats, time_signatures=signature, engine=self.info())
+        # No time signature on purpose: S5 would take the score's metre from it and
+        # a wrong beats-per-bar would change the engraving, not just the bar lines.
+        return BeatGrid(beats=beats, downbeats=downbeats, time_signatures=[], engine=self.info())
 
 
 app = create_app(BeatDBNEngine())
