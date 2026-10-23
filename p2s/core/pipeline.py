@@ -332,6 +332,54 @@ class Pipeline:
         alignment = {k: (float(v[0]), float(v[1])) for k, v in payload.get("alignment", {}).items()}
         score = score.model_copy(update={"alignment": alignment})
         self.warnings.extend(payload.get("warnings", []))
+        align_stage = "s7_align"
+
+        # ---- S7b rebar: cut the bars at the tracked downbeats ------------
+        from p2s.post.rebar import rebar
+
+        span = max((note.offset for note in performance.notes), default=0.0)
+        rebased = rebar(score.musicxml, alignment, grid, duration_s=span)
+        if rebased is not None:
+            rebased_xml: bytes = rebased
+
+            def produce_rebar(tmp: Path, final: Path) -> dict[str, Any]:
+                return {"musicxml": rebased_xml.decode("utf-8")}
+
+            payload, _ = self._stage(
+                stage="s7b_rebar",
+                engine_id="p2s-rebar",
+                engine_version=__version__,
+                weights={},
+                params={},
+                parents=["s7_align", "s4_beats"],
+                producer=produce_rebar,
+            )
+            score = score.model_copy(
+                update={"musicxml": payload["musicxml"].encode("utf-8"), "alignment": {}}
+            )
+
+            def produce_realign(tmp: Path, final: Path) -> dict[str, Any]:
+                mapping, warnings = align(performance, score.musicxml, grid)
+                return {"alignment": {k: list(v) for k, v in mapping.items()}, "warnings": warnings}
+
+            payload, _ = self._stage(
+                stage="s7c_align",
+                engine_id="p2s-align",
+                engine_version=__version__,
+                weights={},
+                params={"rebarred": True},
+                parents=["s7b_rebar", "s3_amt"],
+                producer=produce_realign,
+            )
+            score = score.model_copy(
+                update={
+                    "alignment": {
+                        k: (float(v[0]), float(v[1])) for k, v in payload.get("alignment", {}).items()
+                    }
+                }
+            )
+            self.warnings.extend(payload.get("warnings", []))
+            align_stage = "s7c_align"
 
         # ---- S8 render -----------------------------------------------------
         def produce_render(tmp: Path, final: Path) -> dict[str, Any]:
@@ -343,7 +391,7 @@ class Pipeline:
             engine_version=f"6.x+post-{__version__}",
             weights={},
             params={"scale": 40, "pdf": preset.pdf},
-            parents=["s6_post", "s7_align"],
+            parents=["s6_post", align_stage],
             producer=produce_render,
         )
         artifacts = {name: entry_dir / name for name in payload["files"]}
