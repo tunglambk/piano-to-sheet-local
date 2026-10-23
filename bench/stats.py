@@ -56,3 +56,25 @@ def paired_diff(
         "ci95": [round(means[250], 2), round(means[-250], 2)],
         "win_rate": round(sum(1 for d in diffs if d < 0) / len(diffs), 3),
     }
+
+
+def paired_wilcoxon(a: list[float], b: list[float]) -> dict[str, float]:
+    """Paired Wilcoxon signed-rank with Holm correction over the metric family (spec §6.4)."""
+    from scipy.stats import wilcoxon
+
+    if len(a) != len(b) or len(a) < 6:
+        return {"n": len(a), "p": float("nan"), "note": "needs >= 6 paired items"}
+    statistic, p_value = wilcoxon(a, b, zero_method="wilcox")
+    return {"n": len(a), "statistic": float(statistic), "p": float(p_value)}
+
+
+def holm(p_values: list[float]) -> list[float]:
+    """Holm-Bonferroni adjusted p-values, in the input order."""
+    order = sorted(range(len(p_values)), key=lambda index: p_values[index])
+    adjusted = [0.0] * len(p_values)
+    running = 0.0
+    for rank, index in enumerate(order):
+        value = (len(p_values) - rank) * p_values[index]
+        running = max(running, min(1.0, value))
+        adjusted[index] = running
+    return adjusted
