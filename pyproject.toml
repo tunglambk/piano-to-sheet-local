@@ -59,11 +59,10 @@ exclude = ["**/node_modules", "**/.venv", "data", "spike", "sidecars"]
 reportMissingImports = "warning"
 
 [tool.pytest.ini_options]
-addopts = "-q --timeout=120"
 testpaths = ["tests"]
 markers = [
   "gpu: needs a CUDA GPU",
   "sidecar: needs a running sidecar",
   "slow: long-running",
 ]
-addopts = "-ra"
+addopts = "-ra -q --timeout=120"
