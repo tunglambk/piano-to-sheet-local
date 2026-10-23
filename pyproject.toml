@@ -59,6 +59,7 @@ exclude = ["**/node_modules", "**/.venv", "data", "spike", "sidecars"]
 reportMissingImports = "warning"
 
 [tool.pytest.ini_options]
+addopts = "-q --timeout=120"
 testpaths = ["tests"]
 markers = [
   "gpu: needs a CUDA GPU",

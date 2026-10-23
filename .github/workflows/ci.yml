@@ -83,7 +83,7 @@ jobs:
         run: python scripts/check_lock.py
 
       - name: pytest (CPU, no GPU, no sidecars)
-        run: python -m pytest -m "not gpu and not sidecar" -q
+        run: python -m pytest -m "not gpu and not sidecar" -q --timeout=120 -p no:cacheprovider
 
   web:
     name: web (typecheck, build, unit tests)
@@ -104,10 +104,6 @@ jobs:
       - name: Install
         working-directory: apps/web
         run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - name: Build esbuild (postinstall links the platform binary)
-        working-directory: apps/web
-        run: pnpm rebuild esbuild
 
       - name: Build (tsc + vite)
         working-directory: apps/web
