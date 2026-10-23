@@ -337,7 +337,7 @@ class Pipeline:
         # ---- S7b rebar: cut the bars at the tracked downbeats ------------
         from p2s.post.rebar import rebar
 
-        span = max((note.offset for note in performance.notes), default=0.0)
+        span = max(audio.duration_s, max((note.offset for note in performance.notes), default=0.0))
         rebased = rebar(score.musicxml, alignment, grid, duration_s=span)
         if rebased is not None:
             rebased_xml: bytes = rebased

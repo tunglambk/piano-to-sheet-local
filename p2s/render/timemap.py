@@ -102,7 +102,12 @@ def build_timemap(
     """
     notes = parse_score_notes(musicxml)
     measures: dict[int, float] = {}
-    total = 0
+    # Count the measures the document actually has: a closing bar can be empty of
+    # notes and would otherwise disappear from the timemap (D-038).
+    from xml.etree import ElementTree as ET
+
+    part = ET.fromstring(musicxml).find("part")
+    total = len(part.findall("measure")) if part is not None else 0
     pairs: list[tuple[float, float]] = []
     for note in notes:
         total = max(total, note.measure)

@@ -30,9 +30,11 @@ def _bar_times(downbeats: list[float], beats: list[float], duration_s: float) ->
         return []
     typical = sorted(b - a for a, b in zip(times, times[1:], strict=False))
     step = typical[len(typical) // 2] if typical else 2.0
-    # The tracker often misses the last downbeat when the recording fades out; add
-    # the closing bar when the audio clearly continues past the last downbeat.
-    if duration_s > times[-1] + 0.5 * step:
+    # The tracker often misses the last downbeat when the recording fades out, but
+    # it still marks the beats of that final bar: close the bar as soon as a beat
+    # follows the last downbeat.
+    continues = bool(beats) and beats[-1] > times[-1] + 1e-6
+    if continues or duration_s > times[-1] + 0.5 * step:
         times = [*times, times[-1] + step]
     return times
 
