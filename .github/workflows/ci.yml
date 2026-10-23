@@ -103,7 +103,11 @@ jobs:
 
       - name: Install
         working-directory: apps/web
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build esbuild (postinstall links the platform binary)
+        working-directory: apps/web
+        run: pnpm rebuild esbuild
 
       - name: Build (tsc + vite)
         working-directory: apps/web
