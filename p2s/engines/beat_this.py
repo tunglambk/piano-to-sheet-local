@@ -27,7 +27,6 @@ def _infer_meter(downbeats: list[float], beats: list[float]) -> tuple[int, list[
     return beats_per_bar, [(downbeats[0], f"{beats_per_bar}/4")]
 
 
-
 class BeatThis(EngineBase):
     def __init__(
         self, spec: EngineSpec, lock: ModelLockEntry, device: str = "cuda", checkpoint: str = "final0"
