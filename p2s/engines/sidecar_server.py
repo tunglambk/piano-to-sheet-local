@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from p2s.core.schemas import AudioRef, BeatGrid, Performance, ScoreDoc, ScoreOptions
+from p2s.core.schemas import AudioRef, BeatGrid, MeterHints, Performance, ScoreDoc, ScoreOptions
 
 
 class InferRequest(BaseModel):
@@ -31,6 +31,7 @@ class InferResponse(BaseModel):
     status: str = "ok"
     score: ScoreDoc | None = None
     performance: Performance | None = None
+    grid: BeatGrid | None = None
     error: str | None = None
 
 
@@ -54,6 +55,9 @@ def create_app(engine: Any) -> FastAPI:
                 cancelled.discard(request.request_id)
                 return InferResponse(request_id=request.request_id, status="cancelled")
         try:
+            if request.kind == "beats":
+                result = engine.track(request.audio, MeterHints())
+                return InferResponse(request_id=request.request_id, grid=result)
             if request.kind == "score":
                 if request.performance is None or request.grid is None:
                     raise HTTPException(status_code=422, detail="score inference needs performance and grid")

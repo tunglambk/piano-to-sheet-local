@@ -8,7 +8,16 @@ import uuid
 import httpx
 
 from p2s.core.errors import EngineError
-from p2s.core.schemas import AMTOptions, AudioRef, BeatGrid, EngineInfo, Performance, ScoreDoc, ScoreOptions
+from p2s.core.schemas import (
+    AMTOptions,
+    AudioRef,
+    BeatGrid,
+    EngineInfo,
+    MeterHints,
+    Performance,
+    ScoreDoc,
+    ScoreOptions,
+)
 
 
 class SidecarClient:
@@ -58,6 +67,18 @@ class SidecarClient:
         if body.get("schema_version") not in (None, "1.0"):
             raise EngineError(f"sidecar {self.engine_id} speaks schema {body.get('schema_version')}")
         return body
+
+    def track(self, audio: AudioRef, hints: MeterHints | None = None) -> BeatGrid:
+        payload = {
+            "request_id": uuid.uuid4().hex,
+            "kind": "beats",
+            "audio": audio.model_dump(mode="json"),
+        }
+        body = self._infer(payload)
+        grid = body.get("grid")
+        if not body.get("status") == "ok" or grid is None:
+            raise EngineError(f"sidecar {self.engine_id} returned no beat grid: {body.get('error')}")
+        return BeatGrid.model_validate(grid)
 
     def build(self, perf: Performance, grid: BeatGrid, options: ScoreOptions) -> ScoreDoc:
         body = self._infer(

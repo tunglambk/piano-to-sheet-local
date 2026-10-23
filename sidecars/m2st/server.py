@@ -49,8 +49,14 @@ class M2STEngine:
         except Exception:  # noqa: BLE001 - sidecars may run without the repo configs
             code_license = weight_license = "unknown"
         return EngineInfo(
-            id="m2st", version="0.0.1", weights_sha256={}, code_license=code_license,
-            weight_license=weight_license, commercial_use="unknown", device=DEVICE, kind="sidecar",
+            id="m2st",
+            version="0.0.1",
+            weights_sha256={},
+            code_license=code_license,
+            weight_license=weight_license,
+            commercial_use="unknown",
+            device=DEVICE,
+            kind="sidecar",
         )
 
     def _load(self) -> None:

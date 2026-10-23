@@ -28,6 +28,9 @@ engines:
       kind: inprocess
       module: p2s.engines.beat_this:BeatThis
       checkpoint: final0
+    beat_dbn:
+      kind: sidecar
+      url: http://127.0.0.1:8003
     beat_this_small:
       kind: inprocess
       module: p2s.engines.beat_this:BeatThis

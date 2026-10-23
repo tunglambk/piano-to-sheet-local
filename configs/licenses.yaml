@@ -263,3 +263,14 @@ entries:
     usage: subprocess
     evidence: https://github.com/gregchapman-dev/musicdiff
     notes: Bench oracle only; not shipped, not linked into p2s/.
+  - name: madmom
+    version: "0.16.1"
+    scope: runtime
+    usage: subprocess
+    license: BSD-3-Clause
+    evidence: "https://pypi.org/project/madmom/ (license metadata: BSD with CC BY-NC-SA for some bundled models; only the DBN algorithm is used)"
+    notes: >
+      Optional sidecar engine (sidecars/beat_dbn) for the DBN beat postprocessor.
+      Installs on Python 3.10 only (imports collections.MutableSequence). The
+      code is BSD; some bundled models are CC BY-NC-SA, which the project's
+      noncommercial stance (D-001, D-027) already covers.
