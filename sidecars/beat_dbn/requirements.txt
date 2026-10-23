@@ -1,0 +1,10 @@
+# Python 3.10 only: madmom imports collections.MutableSequence (removed in 3.10+),
+# so this sidecar has its own interpreter instead of living in the core 3.11 env.
+madmom==0.16.1
+numpy<2
+torch==2.4.1
+torchaudio==2.4.1
+beat_this
+fastapi
+uvicorn
+soundfile
