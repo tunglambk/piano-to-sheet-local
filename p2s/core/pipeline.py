@@ -394,7 +394,7 @@ class Pipeline:
         for name, svg in zip(names, rendered.pages, strict=False):
             (tmp / name).write_text(svg)
         pdf_result = render_pdf(score.musicxml, tmp / "score.pdf", rendered.pages)
-        timemap = build_timemap(score.musicxml, score.alignment or {})
+        timemap = build_timemap(score.musicxml, score.alignment or {}, grid)
         (tmp / "timemap.json").write_text(json.dumps(timemap, sort_keys=True, indent=1) + "\n")
         (tmp / "performance.mid").write_bytes(performance_midi(perf, grid))
         (tmp / "quantized.mid").write_bytes(quantized_midi(parse_score_notes(score.musicxml), grid))

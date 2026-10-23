@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from p2s.core.schemas import BeatGrid
 from p2s.post.align import parse_score_notes
 
 
@@ -45,17 +46,72 @@ def _dense_measures(known: dict[int, float], total: int) -> list[tuple[int, floa
     return dense
 
 
-def build_timemap(musicxml: bytes, alignment: dict[str, tuple[float, float]]) -> dict:
+def _local_slope(pairs: list[tuple[float, float]], at: float) -> float:
+    """Seconds per score beat near a beat position (median of nearby pairs)."""
+    slopes = [
+        (t2 - t1) / (b2 - b1)
+        for (b1, t1), (b2, t2) in ((pairs[i], pairs[i + 1]) for i in range(len(pairs) - 1))
+        if b2 > b1 and abs((b1 + b2) / 2 - at) <= 3
+    ]
+    if slopes:
+        slopes.sort()
+        return slopes[len(slopes) // 2]
+    return 0.5
+
+
+def _downbeat_onsets(downbeats: list[float], n_measures: int) -> list[tuple[int, float]] | None:
+    """Spread the performance's downbeats over the score's measures.
+
+    The engraver's bar count and the recording's bar count never match exactly
+    (tempo and metre estimation differ by a few percent). When they are close,
+    the downbeats are the better source of bar lines: every measure then starts
+    on a real barline, which is what the user sees while playing (D-034).
+    """
+    if len(downbeats) < 4 or n_measures < 4:
+        return None
+    ratio = len(downbeats) / n_measures
+    if not 0.85 <= ratio <= 1.18:
+        return None
+    last = len(downbeats) - 1
+    span = max(1, n_measures - 1)
+    return [(m, float(downbeats[round((m - 1) * last / span)])) for m in range(1, n_measures + 1)]
+
+
+def build_timemap(
+    musicxml: bytes,
+    alignment: dict[str, tuple[float, float]],
+    grid: BeatGrid | None = None,
+) -> dict:
+    """Note times plus the barline time of every measure.
+
+    The barline of a measure is not the first note: a measure can begin with a
+    rest. Aligned notes give (score beat, performance seconds); the time of the
+    barline follows by stepping back from the first aligned note by its beat
+    offset inside the measure, at the local tempo (D-034).
+    """
     notes = parse_score_notes(musicxml)
     measures: dict[int, float] = {}
     total = 0
+    pairs: list[tuple[float, float]] = []
     for note in notes:
         total = max(total, note.measure)
         onset = alignment.get(note.note_id)
         if onset is None:
             continue
+        pairs.append((note.beat, onset[0]))
+    pairs.sort()
+    for note in notes:
+        total = max(total, note.measure)
+        onset = alignment.get(note.note_id)
+        if onset is None:
+            continue
+        slope = _local_slope(pairs, note.beat)
+        barline = onset[0] - (note.beat - note.measure_start) * slope
         current = measures.get(note.measure)
-        measures[note.measure] = onset[0] if current is None else min(current, onset[0])
+        measures[note.measure] = barline if current is None else min(current, barline)
+    snapped = _downbeat_onsets(grid.downbeats, total) if grid is not None and grid.downbeats else None
+    if snapped is not None:
+        measures = dict(snapped)
     filled: list[dict] = []
     previous = 0.0
     for number, onset in _dense_measures(measures, total):

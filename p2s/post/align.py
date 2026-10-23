@@ -30,6 +30,7 @@ class ScoreNote:
     step: str | None = None
     alter: int = 0
     octave: int | None = None
+    measure_start: float = 0.0
 
 
 def _to_int(value: str | None, default: int = 0) -> int:
@@ -88,7 +89,17 @@ def parse_score_notes(musicxml: bytes) -> list[ScoreNote]:
                     index_by_staff[staff] = idx + 1
                     note_id = child.get("id") or f"n{staff}-{measure_index}-{idx}"
                     beat = measure_start_beat + position / divisions
-                    notes.append(ScoreNote(note_id, pitch, staff, measure_index, beat, duration / divisions))
+                    notes.append(
+                        ScoreNote(
+                            note_id,
+                            pitch,
+                            staff,
+                            measure_index,
+                            beat,
+                            duration / divisions,
+                            measure_start=measure_start_beat,
+                        )
+                    )
                 if child.find("chord") is None:
                     position += duration
         measure_start_beat += beats_per_bar

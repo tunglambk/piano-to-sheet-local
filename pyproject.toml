@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "p2s"
-version = "0.1.4"
+version = "0.1.6"
 description = "Piano audio/video to two-staff sheet music, fully local"
 requires-python = ">=3.11,<3.12"
 license = "PolyForm-Noncommercial-1.0.0"
