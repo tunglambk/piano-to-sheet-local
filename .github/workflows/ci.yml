@@ -99,7 +99,7 @@ jobs:
           node-version: "22"
 
       - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@9 --activate
+        run: corepack enable && corepack prepare pnpm@12.8.1 --activate
 
       - name: Install
         working-directory: apps/web
