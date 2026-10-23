@@ -39,6 +39,13 @@ def _bar_times(downbeats: list[float], beats: list[float], duration_s: float) ->
     return times
 
 
+def bar_count(grid: BeatGrid | None, duration_s: float) -> int:
+    """How many bars this grid would produce (used to choose between grids)."""
+    if grid is None:
+        return 0
+    return len(_bar_times(grid.downbeats, grid.beats, duration_s))
+
+
 def rebar(
     musicxml: bytes,
     alignment: dict[str, tuple[float, float]],

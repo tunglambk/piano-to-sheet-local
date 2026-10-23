@@ -302,6 +302,53 @@ class Pipeline:
         score = ScoreDoc.model_validate(payload)
         self.warnings.extend(score.warnings)
 
+        # ---- S4b grid choice: prefer the candidate whose bar count agrees with
+        # the score's own measure count (D-039). Requires S5, so it runs here.
+        from p2s.post.rebar import bar_count as _bar_count
+
+        span_for_bars = max(audio.duration_s, max((note.offset for note in performance.notes), default=0.0))
+        from xml.etree import ElementTree as _ET
+
+        _part = _ET.fromstring(score.musicxml).find("part")
+        score_measures = len(_part.findall("measure")) if _part is not None else 0
+        chosen_grid = grid
+        alternatives: list[tuple[str, Any]] = []
+        for candidate_name in ("beat_dbn",):
+            try:
+                candidate = create_engine(self.config, "beats", candidate_name)
+                alternative_grid = candidate.track(audio, hints)
+                if alternative_grid.beats and alternative_grid.downbeats:
+                    alternatives.append((candidate_name, alternative_grid))
+            except Exception:  # noqa: BLE001 - an optional extra opinion may be absent
+                continue
+        if alternatives and score_measures:
+
+            def _distance(value: BeatGrid) -> int:
+                return abs(_bar_count(value, span_for_bars) - score_measures)
+
+            best_name, best_grid = min(alternatives, key=lambda item: _distance(item[1]))
+            if _distance(best_grid) + 1 < _distance(grid):
+                chosen_grid = best_grid
+                self.warnings.append(
+                    f"beat grid switched to {best_name}: {_bar_count(best_grid, span_for_bars)} bars "
+                    f"vs {score_measures} score measures (default gave {_bar_count(grid, span_for_bars)})"
+                )
+        if chosen_grid is not grid:
+
+            def produce_grid_choice(tmp: Path, final: Path) -> dict[str, Any]:
+                return chosen_grid.model_dump(mode="json")
+
+            payload, _ = self._stage(
+                stage="s4b_grid",
+                engine_id=chosen_grid.engine.id if chosen_grid.engine else "grid-choice",
+                engine_version=chosen_grid.engine.version if chosen_grid.engine else "1",
+                weights={},
+                params={"bars": _bar_count(chosen_grid, span_for_bars), "score_measures": score_measures},
+                parents=["s4_beats", "s5_score"],
+                producer=produce_grid_choice,
+            )
+            grid = BeatGrid.model_validate(payload)
+
         # ---- S6 post -------------------------------------------------------
         payload, _ = self._stage(
             stage="s6_post",
