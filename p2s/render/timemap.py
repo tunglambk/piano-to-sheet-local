@@ -72,6 +72,17 @@ def _downbeat_onsets(downbeats: list[float], n_measures: int) -> list[tuple[int,
     ratio = len(downbeats) / n_measures
     if not 0.85 <= ratio <= 1.18:
         return None
+    if abs(len(downbeats) - n_measures) <= 2:
+        # Close enough for a 1:1 mapping: proportional spreading would drift by a
+        # whole bar at the end, which is exactly the error this is meant to remove.
+        times = [float(value) for value in downbeats]
+        if len(times) < n_measures:
+            # Align from the END: an extra bar at the start (pickup, or a tracker
+            # downbeat on the first sample) would otherwise shift every bar by one.
+            step = times[1] - times[0] if len(times) > 1 else 2.0
+            lead = n_measures - len(times)
+            times = [times[0] - step * (lead - index) for index in range(lead)] + times
+        return [(m, times[m - 1]) for m in range(1, n_measures + 1)]
     last = len(downbeats) - 1
     span = max(1, n_measures - 1)
     return [(m, float(downbeats[round((m - 1) * last / span)])) for m in range(1, n_measures + 1)]

@@ -21,12 +21,17 @@ BAR_TICKS = DIVISIONS * BEATS_PER_BAR
 MIN_COVERAGE = 0.6
 
 
-def _bar_times(downbeats: list[float], duration_s: float) -> list[float]:
-    times = [value for value in downbeats if value >= 0.0]
+def _bar_times(downbeats: list[float], beats: list[float], duration_s: float) -> list[float]:
+    # A downbeat before the first tracked beat is an artefact of the start of the
+    # audio, not a bar line: keeping it adds a bar and shifts every later one.
+    floor = beats[0] - 1e-6 if beats else 0.0
+    times = [value for value in downbeats if value >= floor]
     if len(times) < 4:
         return []
     typical = sorted(b - a for a, b in zip(times, times[1:], strict=False))
     step = typical[len(typical) // 2] if typical else 2.0
+    # The tracker often misses the last downbeat when the recording fades out; add
+    # the closing bar when the audio clearly continues past the last downbeat.
     if duration_s > times[-1] + 0.5 * step:
         times = [*times, times[-1] + step]
     return times
@@ -50,7 +55,7 @@ def rebar(
         return None
 
     span = float(duration_s or (max(value[1] for _, value in aligned if value) + 0.5))
-    bars = _bar_times(grid.downbeats, span)
+    bars = _bar_times(grid.downbeats, grid.beats, span)
     if len(bars) < 4:
         return None
 
