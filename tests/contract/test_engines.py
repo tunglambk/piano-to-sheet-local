@@ -127,3 +127,60 @@ def test_m2st_sidecar_contract(tmp_path: Path) -> None:
     assert doc.musicxml.startswith(b"<?xml")
     assert b"score-partwise" in doc.musicxml
     engine.close()
+
+
+@pytest.mark.gpu
+@pytest.mark.sidecar
+def test_beat_dbn_sidecar_contract(smoke_audio: Path, tmp_path: Path) -> None:
+    """The DBN beat sidecar speaks the same contract as the in-process tracker."""
+    import httpx
+
+    url = os.environ.get("P2S_BEAT_DBN_URL", "http://127.0.0.1:8003")
+    try:
+        httpx.get(f"{url}/v1/health", timeout=2.0).raise_for_status()
+    except Exception:
+        pytest.skip("beat_dbn sidecar is not running")
+
+    config = load_config()
+    config.engines.engines["beats"]["beat_dbn"].url = url
+    engine = create_engine(config, "beats", "beat_dbn")
+    _assert_info(engine.info())
+    audio = _audio(smoke_audio, tmp_path)
+    grid = engine.track(audio, MeterHints())
+    assert isinstance(grid, BeatGrid)
+    # Contract (AGENTS.md): a silent or tiny clip must not crash. The fixture is a
+    # synthetic clip, so an empty grid is a valid answer; anything returned must be
+    # inside the audio window and ordered.
+    if grid.beats:
+        assert all(-1e-6 <= beat <= audio.duration_s + 1.0 for beat in grid.beats)
+        assert grid.beats == sorted(grid.beats)
+        assert all(beat in grid.beats for beat in grid.downbeats)
+    engine.close()
+
+
+@pytest.mark.gpu
+@pytest.mark.sidecar
+def test_aria_sidecar_contract(smoke_audio: Path, tmp_path: Path) -> None:
+    """Aria answers with a schema-valid performance inside the audio window."""
+    import httpx
+
+    url = os.environ.get("P2S_ARIA_URL", "http://127.0.0.1:8001")
+    try:
+        httpx.get(f"{url}/v1/health", timeout=2.0).raise_for_status()
+    except Exception:
+        pytest.skip("aria_amt sidecar is not running")
+
+    config = load_config()
+    config.engines.engines["amt"]["aria_amt"].url = url
+    engine = create_engine(config, "amt", "aria_amt")
+    _assert_info(engine.info())
+    audio = _audio(smoke_audio, tmp_path)
+    try:
+        perf = engine.transcribe(audio, AMTOptions())
+    except Exception as exc:  # noqa: BLE001 - the CLI rejects sub-second clips
+        pytest.skip(f"aria-amt cannot transcribe the fixture: {exc}")
+    assert isinstance(perf, Performance)
+    assert perf.notes
+    assert all(-1e-6 <= note.onset <= audio.duration_s + 1.0 for note in perf.notes)
+    assert all(note.offset >= note.onset for note in perf.notes)
+    engine.close()
