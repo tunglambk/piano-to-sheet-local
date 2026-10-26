@@ -238,7 +238,11 @@ class Pipeline:
         self.warnings.extend(payload.get("warnings", []))
 
         # ---- S3 AMT --------------------------------------------------------
-        amt_names = [name for name in preset.amt if name] or ["transkun_v2"]
+        ensemble_enabled = bool(getattr(preset.amt_ensemble, "enabled", False))
+        ensemble_names = [name for name in getattr(preset.amt_ensemble, "engines", []) if name]
+        amt_names = (
+            ensemble_names if ensemble_enabled and ensemble_names else [name for name in preset.amt if name]
+        ) or ["transkun_v2"]
         amt_engine = self.engines.get(amt_names[0]) or create_engine(
             self.config, "amt", amt_names[0], device=amt_device
         )

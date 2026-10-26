@@ -5,7 +5,7 @@ presets:
     separate: auto                     # S1 decides solo vs mix
     separation_threshold: 0.8          # piano-stem energy ratio below this => mix
     amt: [transkun_v2]                 # D-011: single engine until Phase 4 measures the ensemble
-    amt_ensemble:                      # disabled block; Phase 4 may enable it with numbers
+    amt_ensemble:                      # measured twice: +0.04 OMR for +45 s/item, so off by default (D-043)
       enabled: false
       engines: [transkun_v2, aria_amt]
       onset_tolerance_ms: 50
