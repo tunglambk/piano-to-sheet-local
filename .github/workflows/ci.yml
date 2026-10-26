@@ -38,18 +38,19 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
-      # Non-fatal on purpose: the CPU suite skips S0 ingest when ffmpeg is absent,
-      # and the apt mirrors on this runner have twice timed out for 8+ minutes.
+      # The runner image has no ffmpeg and its apt mirrors have timed out twice
+      # (8+ minutes each). imageio-ffmpeg ships a static build over the same pip
+      # index the rest of the job uses, so no sudo and no apt are needed.
       - name: Install ffmpeg (S0 ingest tests)
-        continue-on-error: true
-        timeout-minutes: 8
         run: |
           if command -v ffmpeg >/dev/null 2>&1; then
             echo "ffmpeg already available: $(ffmpeg -version | head -1)"
             exit 0
           fi
-          sudo apt-get update -qq -o Acquire::Retries=3
-          sudo apt-get install -y -qq ffmpeg
+          python -m pip install --quiet imageio-ffmpeg
+          FFMPEG_DIR="$(python -c 'import imageio_ffmpeg, os; print(os.path.dirname(imageio_ffmpeg.get_ffmpeg_exe()))')"
+          echo "$FFMPEG_DIR" >> "$GITHUB_PATH"
+          "$FFMPEG_DIR/ffmpeg" -version | head -1 || ls "$FFMPEG_DIR"
 
       # Only the dependencies the CPU suite touches: the GPU stack (torch,
       # transkun, beat_this, demucs, music21, cairosvg) is deliberately absent,
