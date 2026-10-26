@@ -39,9 +39,10 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Install ffmpeg (S0 ingest tests)
+        timeout-minutes: 8
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          sudo apt-get update -qq -o Acquire::Retries=3 || sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg || sudo apt-get install -y -qq ffmpeg
 
       # Only the dependencies the CPU suite touches: the GPU stack (torch,
       # transkun, beat_this, demucs, music21, cairosvg) is deliberately absent,
