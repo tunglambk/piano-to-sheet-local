@@ -16,8 +16,7 @@ from p2s.post.align import parse_score_notes
 from p2s.render.score_writer import WriterNote, write_score
 
 DIVISIONS = 16
-BEATS_PER_BAR = 4
-BAR_TICKS = DIVISIONS * BEATS_PER_BAR
+DEFAULT_BEATS_PER_BAR = 4
 MIN_COVERAGE = 0.6
 
 
@@ -37,6 +36,18 @@ def _bar_times(downbeats: list[float], beats: list[float], duration_s: float) ->
     if continues or duration_s > times[-1] + 0.5 * step:
         times = [*times, times[-1] + step]
     return times
+
+
+def _beats_per_bar(beats: list[float], downbeats: list[float]) -> int:
+    """Beats between consecutive downbeats, as the tracker hears them."""
+    counts: dict[int, int] = {}
+    for previous, current in zip(downbeats, downbeats[1:], strict=False):
+        value = sum(1 for beat in beats if previous - 1e-6 <= beat < current - 1e-6)
+        if 2 <= value <= 12:
+            counts[value] = counts.get(value, 0) + 1
+    if not counts:
+        return DEFAULT_BEATS_PER_BAR
+    return max(counts.items(), key=lambda item: item[1])[0]
 
 
 def bar_count(grid: BeatGrid | None, duration_s: float) -> int:
@@ -68,6 +79,11 @@ def rebar(
     if len(bars) < 4:
         return None
 
+    # The metre comes from the tracker, not from a constant: engraving everything
+    # in 4/4 left a third of the bars empty on a 3/4 piece (D-048).
+    beats_per_bar = _beats_per_bar(grid.beats, grid.downbeats)
+    bar_ticks = DIVISIONS * beats_per_bar
+
     writer_notes: list[WriterNote] = []
     for note, value in aligned:
         if value is None:
@@ -77,15 +93,15 @@ def rebar(
         bar_start = bars[index]
         bar_end = bars[index + 1] if index + 1 < len(bars) else bar_start + (bars[-1] - bars[-2])
         width = max(1e-3, bar_end - bar_start)
-        start = int(round((onset - bar_start) / width * BAR_TICKS))
-        end = int(round((offset - bar_start) / width * BAR_TICKS))
-        start = max(0, min(BAR_TICKS - 1, start))
-        end = max(start + 1, min(BAR_TICKS, end))
+        start = int(round((onset - bar_start) / width * bar_ticks))
+        end = int(round((offset - bar_start) / width * bar_ticks))
+        start = max(0, min(bar_ticks - 1, start))
+        end = max(start + 1, min(bar_ticks, end))
         writer_notes.append(
             WriterNote(
                 pitch=note.pitch,
-                start_tick=index * BAR_TICKS + start,
-                end_tick=index * BAR_TICKS + end,
+                start_tick=index * bar_ticks + start,
+                end_tick=index * bar_ticks + end,
                 staff=note.staff,
                 note_id=note.note_id,
                 step=note.step,
@@ -98,7 +114,7 @@ def rebar(
     return write_score(
         writer_notes,
         divisions=DIVISIONS,
-        meters=[(BEATS_PER_BAR, 4)] * len(bars),
+        meters=[(beats_per_bar, 4)] * len(bars),
         fifths=0,
         mode="major",
         n_measures=len(bars),
