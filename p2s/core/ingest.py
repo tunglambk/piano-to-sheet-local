@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -54,6 +55,22 @@ def ffmpeg_version() -> str:
     return first.strip()
 
 
+def _probe_with_soundfile(path: Path) -> MediaInfo:
+    """Minimal probe for environments without ffprobe (WAV/FLAC/OGG)."""
+    try:
+        import soundfile
+
+        info = soundfile.info(str(path))
+    except Exception as exc:  # noqa: BLE001 - unreadable input is a corrupt input
+        raise CorruptInput(f"neither ffprobe nor soundfile can read {path.name}: {exc}") from exc
+    return MediaInfo(
+        duration_s=float(info.duration),
+        sample_rate=int(info.samplerate),
+        channels=int(info.channels),
+        codec=(info.format or "").lower(),
+    )
+
+
 def probe(path: Path, *, allow_long: bool = False) -> MediaInfo:
     if not path.exists():
         raise UnsupportedInput(f"input not found: {path}")
@@ -61,6 +78,10 @@ def probe(path: Path, *, allow_long: bool = False) -> MediaInfo:
         raise CorruptInput(f"input is empty: {path}")
     if path.stat().st_size > MAX_BYTES:
         raise UnsupportedInput(f"input is larger than 500 MB: {path}")
+    if shutil.which("ffprobe") is None:
+        # ffprobe is not always installed (a static ffmpeg build ships one binary):
+        # fall back to soundfile/librosa metadata for the formats it can open.
+        return _probe_with_soundfile(path)
     proc = subprocess.run(
         ["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", str(path)],
         capture_output=True,
