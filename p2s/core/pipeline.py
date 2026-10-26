@@ -344,7 +344,7 @@ class Pipeline:
                 engine_version=chosen_grid.engine.version if chosen_grid.engine else "1",
                 weights={},
                 params={"bars": _bar_count(chosen_grid, span_for_bars), "score_measures": score_measures},
-                parents=["s4_beats", "s5_score"],
+                parents=["s4_beats", score_stage],
                 producer=produce_grid_choice,
             )
             grid = BeatGrid.model_validate(payload)
