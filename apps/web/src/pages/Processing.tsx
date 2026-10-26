@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
+
 import { type Job, cancelJob, eventsUrl, getJob } from "../api";
+import { stageLabelKey } from "../lib/stages";
 
 export default function Processing(): JSX.Element {
   const { t } = useTranslation();
@@ -58,11 +60,15 @@ export default function Processing(): JSX.Element {
       ) : null}
       <h2>{t("processing.stages")}</h2>
       <ul className="stages">
-        {job.stages.map((stage) => (
-          <li key={stage.stage}>
-            <code>{stage.stage}</code> {stage.engine} — {stage.cache_hit ? "cache" : `${stage.duration_s.toFixed(1)}s`}
-          </li>
-        ))}
+        {job.stages.map((stage) => {
+          const key = stageLabelKey(stage.stage);
+          return (
+            <li key={stage.stage}>
+              <code>{stage.stage}</code> {key ? t(key) : stage.stage} · {stage.engine} —{" "}
+              {stage.cache_hit ? "cache" : `${stage.duration_s.toFixed(1)}s`}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

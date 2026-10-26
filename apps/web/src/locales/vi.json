@@ -1,11 +1,22 @@
 {
-  "app": { "title": "P2S Local", "library": "Thư viện", "new": "Job mới", "language": "Ngôn ngữ" },
+  "app": {
+    "title": "P2S Local",
+    "library": "Thư viện",
+    "new": "Job mới",
+    "language": "Ngôn ngữ"
+  },
   "library": {
     "title": "Các job",
     "empty": "Chưa có job nào. Tải một bản thu lên để bắt đầu.",
     "search": "Tìm theo tên",
-    "name": "Tên", "status": "Trạng thái", "preset": "Preset", "duration": "Thời lượng", "actions": "Thao tác",
-    "open": "Mở", "delete": "Xoá", "new": "Job mới"
+    "name": "Tên",
+    "status": "Trạng thái",
+    "preset": "Preset",
+    "duration": "Thời lượng",
+    "actions": "Thao tác",
+    "open": "Mở",
+    "delete": "Xoá",
+    "new": "Job mới"
   },
   "new": {
     "title": "Job mới",
@@ -39,7 +50,26 @@
     "engines": "Engine",
     "loading": "Đang tải bản nhạc…",
     "not_ready": "Job này chưa có bản nhạc.",
-    "pdf": "PDF", "musicxml": "MusicXML", "mxl": "MusicXML nén",
-    "mid": "MIDI trình diễn", "mid_quantized": "MIDI lượng tử hoá", "mei": "MEI", "timemap": "Timemap"
+    "pdf": "PDF",
+    "musicxml": "MusicXML",
+    "mxl": "MusicXML nén",
+    "mid": "MIDI trình diễn",
+    "mid_quantized": "MIDI lượng tử hoá",
+    "mei": "MEI",
+    "timemap": "Timemap"
+  },
+  "stage": {
+    "ingest": "Đọc âm thanh",
+    "route": "Phân loại",
+    "transcribe": "Chép nốt",
+    "beats": "Tìm nhịp",
+    "grid": "Chọn lưới nhịp",
+    "score": "Viết bản nhạc",
+    "scoreFallback": "Viết bản nhạc (dự phòng)",
+    "post": "Dọn dẹp",
+    "align": "Căn chỉnh",
+    "rebar": "Chia lại ô nhịp",
+    "alignRebarred": "Căn chỉnh bản đã chia lại",
+    "render": "Kết xuất"
   }
 }
