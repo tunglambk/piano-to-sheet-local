@@ -138,3 +138,13 @@ def test_unreachable_score_engine_falls_back(
     result = pipeline.run(smoke_audio, "accurate")
     assert result.artifact("score.musicxml").exists()
     assert any("m2st" in w and "falling back" in w for w in result.warnings)
+
+
+def test_artifacts_are_byte_identical_without_cache(patched: None, tmp_path: Path, smoke_audio: Path) -> None:
+    """Determinism (spec §5.3): two cold runs must produce identical bytes."""
+    first = _run(tmp_path / "a", smoke_audio)
+    second = _run(tmp_path / "b", smoke_audio)
+    for kind in ("performance.mid", "score.musicxml"):
+        assert first.artifact(kind).read_bytes() == second.artifact(kind).read_bytes(), kind
+    timemap_first = first.artifact("timemap.json").read_bytes()
+    assert timemap_first == second.artifact("timemap.json").read_bytes()
