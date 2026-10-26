@@ -48,9 +48,11 @@ jobs:
             exit 0
           fi
           python -m pip install --quiet imageio-ffmpeg
-          FFMPEG_DIR="$(python -c 'import imageio_ffmpeg, os; print(os.path.dirname(imageio_ffmpeg.get_ffmpeg_exe()))')"
-          echo "$FFMPEG_DIR" >> "$GITHUB_PATH"
-          "$FFMPEG_DIR/ffmpeg" -version | head -1 || ls "$FFMPEG_DIR"
+          FFMPEG_BIN="$(python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')"
+          mkdir -p "$HOME/.local/bin"
+          ln -sf "$FFMPEG_BIN" "$HOME/.local/bin/ffmpeg"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/ffmpeg" -version | head -1
 
       # Only the dependencies the CPU suite touches: the GPU stack (torch,
       # transkun, beat_this, demucs, music21, cairosvg) is deliberately absent,
