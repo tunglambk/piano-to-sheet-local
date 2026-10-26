@@ -23,6 +23,10 @@ presets:
     score: rule_quant
     pdf: verovio
 
+  accurate_transkun:   # ablation: no ensemble, Transkun alone (P4 phone study)
+    extends: accurate
+    amt: [transkun_v2]
+
   song:                # songs with vocals / band
     extends: accurate
     separate: "on"

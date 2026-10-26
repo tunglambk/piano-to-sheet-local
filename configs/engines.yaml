@@ -20,7 +20,7 @@ engines:
       device: cuda
     aria_amt:
       kind: sidecar
-      url: http://aria-amt:8001
+      url: http://127.0.0.1:8001
       timeout_s: 600
 
   beats:               # S4

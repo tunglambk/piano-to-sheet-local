@@ -19,7 +19,7 @@ P2S_OPEN = DATA / "p2s_open" / "v0"
 SPLITS = REPO_ROOT / "bench" / "splits" / "p2s_open_v0.json"
 
 
-def _items(suite: str, limit: int) -> list[dict]:
+def _items(suite: str, limit: int, condition: str | None = None) -> list[dict]:
     if suite.startswith("p2s_open"):
         index = json.loads((P2S_OPEN / "items.json").read_text())
         split = "dev" if suite.endswith("dev") else "test"
@@ -50,6 +50,8 @@ def _items(suite: str, limit: int) -> list[dict]:
                     "condition": entry["condition"],
                 }
             )
+        if condition:
+            out = [entry for entry in out if entry["condition"] == condition]
         return out[:limit] if limit else out
     raise P2SError(f"unknown suite {suite!r} (Phase 1 knows p2s_open_dev and p2s_open_test)")
 
@@ -170,7 +172,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     if args.split == "test" and not args.final:
         raise P2SError("test-split runs need --final (D-010)")
-    items = _items(args.suite, args.limit)
+    items = _items(args.suite, args.limit, getattr(args, "condition", None))
     RESULTS.mkdir(parents=True, exist_ok=True)
     values: dict[str, float | None] = {}
     rows = []
@@ -228,6 +230,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--suite", required=True)
     run.add_argument("--system", required=True, help="p2s:accurate | p2s:fast | baseline:musescore")
     run.add_argument("--split", default="dev", choices=["dev", "test"])
+    run.add_argument("--condition", default=None, choices=["clean", "phone"])
     run.add_argument("--final", action="store_true")
     run.add_argument("--limit", type=int, default=0)
     run.add_argument("--sidecar", default="http://127.0.0.1:8002")

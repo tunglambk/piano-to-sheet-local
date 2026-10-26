@@ -84,6 +84,23 @@ class JobResult:
         return self.artifacts[name]
 
 
+def _transcribe(
+    primary: Any, extra: list[Any], audio: AudioRef, options: AMTOptions, ensemble: Any
+) -> Performance:
+    """Run one or more AMT engines and merge them with the preset's vote policy."""
+    first = primary.transcribe(audio, options)
+    if not extra:
+        return first
+    from p2s.post.ensemble import merge
+
+    others = [engine.transcribe(audio, options) for engine in extra]
+    return merge(
+        [first, *others],
+        vote=getattr(ensemble, "vote", "keep_if_both_or_high_velocity"),
+        tolerance_ms=getattr(ensemble, "onset_tolerance_ms", 50.0),
+    )
+
+
 class Pipeline:
     def __init__(
         self,
@@ -221,11 +238,20 @@ class Pipeline:
         self.warnings.extend(payload.get("warnings", []))
 
         # ---- S3 AMT --------------------------------------------------------
-        amt_name = preset.amt[0] if preset.amt else "transkun_v2"
-        amt_engine = self.engines.get(amt_name) or create_engine(
-            self.config, "amt", amt_name, device=amt_device
+        amt_names = [name for name in preset.amt if name] or ["transkun_v2"]
+        amt_engine = self.engines.get(amt_names[0]) or create_engine(
+            self.config, "amt", amt_names[0], device=amt_device
         )
-        self.engines[amt_name] = amt_engine
+        self.engines[amt_names[0]] = amt_engine
+        extra_engines = []
+        ensemble_enabled = bool(getattr(preset.amt_ensemble, "enabled", False))
+        for name in amt_names[1:] if ensemble_enabled else []:
+            try:
+                extra_engines.append(
+                    self.engines.get(name) or create_engine(self.config, "amt", name, device=amt_device)
+                )
+            except Exception as exc:  # noqa: BLE001 - a missing second opinion must be visible, not silent
+                self.warnings.append(f"amt ensemble degraded: {name} unavailable ({exc.__class__.__name__})")
         amt_info = amt_engine.info()
         amt_opts = AMTOptions(device=amt_device)  # type: ignore[arg-type]
         payload, _ = self._stage(
@@ -233,9 +259,18 @@ class Pipeline:
             engine_id=amt_info.id,
             engine_version=amt_info.version,
             weights=amt_info.weights_sha256,
-            params=amt_opts.model_dump(mode="json"),
+            params={
+                **amt_opts.model_dump(mode="json"),
+                # The engine list and vote policy change the output, so they belong
+                # in the cache key; without them an ablation silently reuses the
+                # ensemble's performance (found while measuring D-043).
+                "engines": list(preset.amt),
+                "vote": preset.amt_ensemble.model_dump(mode="json"),
+            },
             parents=["s0_ingest"],
-            producer=lambda tmp, final: amt_engine.transcribe(audio, amt_opts).model_dump(mode="json"),
+            producer=lambda tmp, final: _transcribe(
+                amt_engine, extra_engines, audio, amt_opts, preset.amt_ensemble
+            ).model_dump(mode="json"),
         )
         performance = Performance.model_validate(payload)
 
