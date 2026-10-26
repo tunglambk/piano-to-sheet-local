@@ -23,6 +23,7 @@ echo "== licenses"
 "$PY" scripts/check_licenses.py || status=1
 echo "== docs i18n"
 "$PY" scripts/check_docs.py || status=1
+"$PY" scripts/check_report_refs.py || status=1
 echo "== models.lock"
 "$PY" scripts/check_lock.py || status=1
 echo "== pytest (not gpu)"
