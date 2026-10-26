@@ -27,6 +27,10 @@ presets:
     extends: accurate
     amt: [transkun_v2]
 
+  fast_full_beats:     # ablation: CPU pipeline with the full beat model (P4 study)
+    extends: fast
+    beats: beat_this
+
   song:                # songs with vocals / band
     extends: accurate
     separate: "on"
