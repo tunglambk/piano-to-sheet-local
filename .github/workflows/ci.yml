@@ -69,10 +69,10 @@ jobs:
 
       - name: Generate the licence-safe test fixture
         run: |
-          mkdir -p data/fixtures/smoke
-          ffmpeg -hide_banner -loglevel error -y \
-            -f lavfi -i "sine=frequency=440:duration=6:sample_rate=44100" \
-            -ac 2 data/fixtures/smoke/fast_passage.wav
+          # A pure sine carries no notes and no pulse, so the GPU contract tests
+          # could never find anything in it. This renders a short scale instead,
+          # generated from code (no licence, no download).
+          python tests/fixtures/make_smoke.py
           ls -l data/fixtures/smoke/fast_passage.wav
 
       - name: ruff check
