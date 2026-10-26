@@ -78,7 +78,9 @@ def main() -> int:
     scored = [row["max_error_beats"] for row in rows if row["max_error_beats"] is not None]
     passed = sum(1 for value in scored if value <= 1.0)
     print(f"\n{passed}/{len(scored)} items within one beat")
-    out = REPO / "bench" / "reports" / "phase-2" / "sync.json"
+    # One file per preset: writing both runs into sync.json made the second run
+    # silently overwrite the first, so the report quoted the wrong preset.
+    out = REPO / "bench" / "reports" / "phase-2" / f"sync_{args.preset}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"rows": rows, "passed": passed, "n": len(scored)}, indent=1) + "\n")
     return 0 if scored and passed == len(scored) else 1
