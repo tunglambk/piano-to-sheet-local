@@ -117,8 +117,8 @@ class RuleQuantizer(EngineBase):
         # taking the meter from the time signature alone put bar lines on the wrong
         # beat whenever the piece starts on an anacrusis (D-035).
         phase_beats = 0
+        indices: list[int] = []
         if len(grid.downbeats) >= 3:
-            indices: list[int] = []
             for downbeat in grid.downbeats:
                 nearest = min(range(len(beats)), key=lambda i: abs(beats[i] - downbeat))
                 indices.append(nearest)
@@ -134,6 +134,11 @@ class RuleQuantizer(EngineBase):
                 beats_per_bar = int(grid.time_signatures[0][1].split("/")[0])
             except (ValueError, IndexError):
                 warnings.append(f"cannot parse time signature {grid.time_signatures[0][1]!r}; assumed 4/4")
+            # The phase was derived for the downbeat-implied bar length; once the
+            # time signature overrides the length it has to be recomputed, or every
+            # bar line shifts by the difference (found while measuring D-045).
+            if indices:
+                phase_beats = indices[0] % max(2, beats_per_bar)
         if opts.time_signature_hint:
             try:
                 beats_per_bar = int(opts.time_signature_hint.split("/")[0])
