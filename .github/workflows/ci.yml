@@ -38,7 +38,10 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
+      # Non-fatal on purpose: the CPU suite skips S0 ingest when ffmpeg is absent,
+      # and the apt mirrors on this runner have twice timed out for 8+ minutes.
       - name: Install ffmpeg (S0 ingest tests)
+        continue-on-error: true
         timeout-minutes: 8
         run: |
           if command -v ffmpeg >/dev/null 2>&1; then
