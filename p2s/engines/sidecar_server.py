@@ -8,13 +8,17 @@ the same contract.
 
 from __future__ import annotations
 
+import logging
 import threading
+import traceback
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from p2s.core.schemas import AudioRef, BeatGrid, MeterHints, Performance, ScoreDoc, ScoreOptions
+
+LOG = logging.getLogger(__name__)
 
 
 class InferRequest(BaseModel):
@@ -76,6 +80,7 @@ def create_app(engine: Any) -> FastAPI:
         except HTTPException:
             raise
         except Exception as exc:  # noqa: BLE001 - reported to the client
+            LOG.warning("sidecar infer failed: %s", traceback.format_exc())
             return InferResponse(
                 request_id=request.request_id, status="error", error=f"{type(exc).__name__}: {exc}"
             )

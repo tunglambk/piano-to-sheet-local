@@ -86,8 +86,11 @@ class M2STEngine:
             x = self._tokenizer.tokenize_midi(str(midi_path))
             with torch.no_grad():
                 y = infer(x, self._model, overlap=64, chunk=512, verbose=False, kv_cache=True)
-            notes = self._tokenizer.midi_to_list(str(midi_path))
-            score = self._tokenizer.detokenize_mxl(y, midi_sequence=notes)
+            # Upstream inserts tempo marks from `midi_sequence` by indexing one past
+            # its end for the last events, which raised IndexError and sent every
+            # fresh job to the rule quantiser. Not passing it skips only that
+            # bookkeeping: the pipeline re-times the score from the beat grid (D-044).
+            score = self._tokenizer.detokenize_mxl(y)
             out = Path(tmp) / "score.musicxml"
             score.write("musicxml", fp=str(out))
             return ScoreDoc(musicxml=out.read_bytes(), warnings=[])
