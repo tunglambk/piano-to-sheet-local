@@ -16,13 +16,24 @@ RESULTS = DATA / "bench" / "results"
 P2S_OPEN = DATA / "p2s_open" / "v0"
 
 
+SPLITS = REPO_ROOT / "bench" / "splits" / "p2s_open_v0.json"
+
+
 def _items(suite: str, limit: int) -> list[dict]:
     if suite.startswith("p2s_open"):
         index = json.loads((P2S_OPEN / "items.json").read_text())
         split = "dev" if suite.endswith("dev") else "test"
-        items = [e for e in index if e["split"] == split]
+        if SPLITS.exists():
+            manifest = json.loads(SPLITS.read_text())
+            allowed = set(manifest.get(split, []))
+            items = [e for e in index if e["item_id"] in allowed]
+        else:
+            items = [e for e in index if e["split"] == split]
         if not items:
-            raise P2SError(f"no P2S-Open items for split {split}")
+            raise P2SError(
+                f"no P2S-Open items for split {split!r} in {SPLITS.name}: the frozen manifest has "
+                f"{len(json.loads(SPLITS.read_text()).get(split, []))} entries (D-010)"
+            )
         out = []
         for entry in items:
             item_dir = REPO_ROOT / entry["path"]
