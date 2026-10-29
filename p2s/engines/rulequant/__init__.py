@@ -288,6 +288,11 @@ class RuleQuantizer(EngineBase):
                         cursor = rel_start + dur
                 if cursor < bar_ticks:
                     self._rest(measure, bar_ticks - cursor, staff, divisions)
+        # A segment dropped by the bar clipping leaves a tie `start` with no `stop`;
+        # the same repair the rebar writer uses is applied here (D-068).
+        from p2s.render.score_writer import _sanitise_ties
+
+        _sanitise_ties(part)
         ET.indent(root)
         return ET.tostring(root, encoding="utf-8", xml_declaration=True)
 
