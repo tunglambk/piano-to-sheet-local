@@ -152,6 +152,9 @@ def write_score(
                 while index + 1 < len(entries) and entries[index + 1][1] == offset:
                     index += 1
                     group.append(entries[index])
+                specs = _beam_specs(
+                    entries, divisions, int(divisions * beats * 4 / max(1, beat_type)) // beats
+                )
                 longest = 0
                 for chord_index, (chord_note, _o, chord_duration, chord_tie, chord_id) in enumerate(group):
                     clipped = min(chord_duration, lengths[m] - cursor)
@@ -167,6 +170,7 @@ def write_score(
                         fifths,
                         divisions,
                         chord=chord_index > 0,
+                        beams=specs.get(chord_id),
                     )
                     longest = max(longest, clipped)
                 cursor += max(longest, 0)
@@ -175,6 +179,43 @@ def write_score(
                 _rest(measure, lengths[m] - cursor, staff, divisions)
     ET.indent(root)
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
+def _beam_specs(
+    entries: list[tuple[WriterNote, int, int, str | None, str]],
+    divisions: int,
+    beat_ticks: int,
+) -> dict[str, list[tuple[int, str]]]:
+    """Group eighth-or-shorter notes inside one beat and give each a beam.
+
+    Without beams a run of eighth notes is an unreadable sequence of flagged
+    notes; music21 and MuseScore both re-beam on import, but the file is also read
+    by tools that do not (D-050).
+    """
+    groups: dict[int, list[tuple[WriterNote, int, int, str | None, str]]] = {}
+    for entry in entries:
+        _note, offset, duration = entry[0], entry[1], entry[2]
+        if duration > divisions / 2 + 1e-6:
+            continue
+        groups.setdefault(offset // max(1, beat_ticks), []).append(entry)
+    specs: dict[str, list[tuple[int, str]]] = {}
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        for position, (_note, _offset, duration, _tie, note_id) in enumerate(members):
+            if position == 0:
+                state = "begin"
+            elif position == len(members) - 1:
+                state = "end"
+            else:
+                state = "continue"
+            levels = 1
+            if duration <= divisions / 4 + 1e-6:
+                levels = 2
+            if duration <= divisions / 8 + 1e-6:
+                levels = 3
+            specs[note_id] = [(level, state) for level in range(1, levels + 1)]
+    return specs
 
 
 def _note(
@@ -187,6 +228,7 @@ def _note(
     fifths: int,
     divisions: int,
     chord: bool = False,
+    beams: list[tuple[int, str]] | None = None,
 ) -> None:
     if note.step is not None and note.octave is not None:
         step, alter, octave = note.step, note.alter, note.octave
@@ -205,6 +247,9 @@ def _note(
         ET.SubElement(el, "tie", type="stop")
     ET.SubElement(el, "voice").text = "1"
     ET.SubElement(el, "type").text = _note_type(duration, divisions)
+    if beams and not chord:
+        for number, state in beams:
+            ET.SubElement(el, "beam", number=str(number)).text = state
     if tie:
         notations = ET.SubElement(el, "notations")
         if tie in ("start", "both"):
