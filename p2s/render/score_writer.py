@@ -245,8 +245,37 @@ def write_score(
         measure_beat_ticks = measure_ticks // max(1, beats)
         _apply_beams(measure, divisions, _beam_group_ticks(beats, beat_type, measure_beat_ticks))
         _sanitise_beams(measure)
+    _sanitise_ties(part)
     ET.indent(root)
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
+def _sanitise_ties(part: ET.Element) -> None:
+    """Remove tie starts that have no matching stop (D-065).
+
+    A note split across a bar line emits `start` on the first segment and `stop` on
+    the last. When the last segment is dropped (rounded to zero at a bar edge) the
+    `start` is left dangling, and music21 reports "tie ... identical values in
+    @startid and @endid". Unmatched starts are removed here.
+    """
+    pending: list[ET.Element] = []
+    for note in part.iter("note"):
+        tie = note.find("tie")
+        if tie is None:
+            continue
+        kind = tie.get("type")
+        if kind == "start":
+            pending.append(note)
+        elif kind == "stop" and pending:
+            pending.pop()
+    for note in pending:
+        for tie in list(note.findall("tie")):
+            if tie.get("type") == "start":
+                note.remove(tie)
+        for notations in note.findall("notations"):
+            for tied in list(notations.findall("tied")):
+                if tied.get("type") == "start":
+                    notations.remove(tied)
 
 
 def _apply_beams(measure: ET.Element, divisions: int, group_ticks: int) -> None:
