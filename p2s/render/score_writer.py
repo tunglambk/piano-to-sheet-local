@@ -43,12 +43,33 @@ def spell(pitch: int, fifths: int) -> tuple[str, int, int]:
     return name[0], alter, pitch // 12 - 1
 
 
-def _note_type(duration: int, divisions: int) -> str:
+NOTE_BASES: list[tuple[float, str]] = [
+    (4.0, "whole"),
+    (2.0, "half"),
+    (1.0, "quarter"),
+    (0.5, "eighth"),
+    (0.25, "16th"),
+    (0.125, "32nd"),
+    (0.0625, "64th"),
+]
+
+
+def _note_type(duration: int, divisions: int) -> tuple[str, int]:
+    """Return the written type and how many dots it needs (D-053).
+
+    A duration that was not an exact table value used to be labelled "quarter",
+    which made the file internally inconsistent: `<duration>6</duration>` with
+    `<type>quarter</type>` at 16 divisions per quarter. The type is now the closest
+    base value with up to two dots, so type + dots always add up to the duration.
+    """
     ratio = duration / max(1, divisions)
-    for value, name in NOTE_TYPES:
-        if abs(ratio - value) < 0.02:
-            return name
-    return "quarter"
+    candidates: list[tuple[float, str, int]] = []
+    for value, name in NOTE_BASES:
+        candidates.append((value, name, 0))
+        candidates.append((value * 1.5, name, 1))
+        candidates.append((value * 1.75, name, 2))
+    best = min(candidates, key=lambda item: abs(item[0] - ratio))
+    return best[1], best[2]
 
 
 def _measure_lengths(divisions: int, meters: list[tuple[int, int]], n_measures: int) -> list[int]:
@@ -281,7 +302,10 @@ def _note(
     if tie in ("stop", "both"):
         ET.SubElement(el, "tie", type="stop")
     ET.SubElement(el, "voice").text = "1"
-    ET.SubElement(el, "type").text = _note_type(duration, divisions)
+    type_name, dots = _note_type(duration, divisions)
+    ET.SubElement(el, "type").text = type_name
+    for _ in range(dots):
+        ET.SubElement(el, "dot")
     if beams and not chord:
         for number, state in beams:
             ET.SubElement(el, "beam", number=str(number)).text = state
@@ -299,5 +323,8 @@ def _rest(measure: ET.Element, duration: int, staff: int, divisions: int) -> Non
     ET.SubElement(el, "rest")
     ET.SubElement(el, "duration").text = str(duration)
     ET.SubElement(el, "voice").text = "1"
-    ET.SubElement(el, "type").text = _note_type(duration, divisions)
+    type_name, dots = _note_type(duration, divisions)
+    ET.SubElement(el, "type").text = type_name
+    for _ in range(dots):
+        ET.SubElement(el, "dot")
     ET.SubElement(el, "staff").text = str(staff)
