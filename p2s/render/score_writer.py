@@ -184,44 +184,63 @@ def write_score(
                 backup = ET.SubElement(measure, "backup")
                 ET.SubElement(backup, "duration").text = str(lengths[m])
             entries = sorted(segments.get((staff, m), []), key=lambda e: (e[1], e[0].pitch, e[4]))
-            cursor = 0
-            index = 0
-            while index < len(entries):
-                note, offset, duration, tie, note_id = entries[index]
-                if offset > cursor:
-                    _rest(measure, offset - cursor, staff, divisions)
-                    cursor = offset
-                # Notes sharing an onset are a chord: first normal, the rest with <chord/>.
-                group = [entries[index]]
-                while index + 1 < len(entries) and entries[index + 1][1] == offset:
-                    index += 1
-                    group.append(entries[index])
-                specs = _beam_specs(
-                    entries, divisions, int(divisions * beats * 4 / max(1, beat_type)) // beats
-                )
-                longest = 0
-                for chord_index, (chord_note, _o, chord_duration, chord_tie, chord_id) in enumerate(group):
-                    available = max(1, lengths[m] - offset)
-                    clipped = _fit_duration(chord_duration, available, divisions)
-                    if clipped <= 0:
-                        continue
-                    _note(
-                        measure,
-                        chord_note,
-                        clipped,
-                        chord_tie,
-                        chord_id,
-                        staff,
-                        fifths,
-                        divisions,
-                        chord=chord_index > 0,
-                        beams=specs.get(chord_id),
-                    )
-                    longest = max(longest, clipped)
-                cursor += max(longest, 0)
-                index += 1
-            if cursor < lengths[m]:
-                _rest(measure, lengths[m] - cursor, staff, divisions)
+            # Notes that overlap in time belong to different voices: writing them
+            # one after another moves the melody (D-063). Chords (same onset) stay
+            # together inside one voice.
+            chords: list[list[tuple[WriterNote, int, int, str | None, str]]] = []
+            for entry in entries:
+                if chords and chords[-1][0][1] == entry[1]:
+                    chords[-1].append(entry)
+                else:
+                    chords.append([entry])
+            voices: list[list[list[tuple[WriterNote, int, int, str | None, str]]]] = []
+            voice_ends: list[int] = []
+            for chord in chords:
+                offset = chord[0][1]
+                duration = max(chord_duration for _n, _o, chord_duration, _t, _i in chord)
+                tolerance = max(1, divisions // 8)
+                for index, end in enumerate(voice_ends):
+                    if end - tolerance <= offset:
+                        voices[index].append(chord)
+                        voice_ends[index] = offset + duration
+                        break
+                else:
+                    voices.append([chord])
+                    voice_ends.append(offset + duration)
+            for voice_index, voice in enumerate(voices, start=1):
+                cursor = 0
+                for chord in voice:
+                    offset = chord[0][1]
+                    if offset > cursor:
+                        _rest(measure, offset - cursor, staff, divisions, voice_index)
+                        cursor = offset
+                    longest = 0
+                    for chord_index, (chord_note, _o, chord_duration, chord_tie, chord_id) in enumerate(
+                        chord
+                    ):
+                        available = max(1, lengths[m] - offset)
+                        clipped = _fit_duration(chord_duration, available, divisions)
+                        if clipped <= 0:
+                            continue
+                        _note(
+                            measure,
+                            chord_note,
+                            clipped,
+                            chord_tie,
+                            chord_id,
+                            staff,
+                            fifths,
+                            divisions,
+                            chord=chord_index > 0,
+                            voice=voice_index,
+                        )
+                        longest = max(longest, clipped)
+                    cursor += max(longest, 0)
+                if cursor < lengths[m]:
+                    _rest(measure, lengths[m] - cursor, staff, divisions, voice_index)
+                if voice_index < len(voices):
+                    backup = ET.SubElement(measure, "backup")
+                    ET.SubElement(backup, "duration").text = str(lengths[m])
         measure_ticks = int(divisions * beats * 4 / max(1, beat_type))
         measure_beat_ticks = measure_ticks // max(1, beats)
         _apply_beams(measure, divisions, _beam_group_ticks(beats, beat_type, measure_beat_ticks))
@@ -238,19 +257,25 @@ def _apply_beams(measure: ET.Element, divisions: int, group_ticks: int) -> None:
     Working on the emitted notes makes every span valid by construction.
     """
     staff = "1"
-    position = 0
-    groups: dict[tuple[str, int], list[tuple[ET.Element, int]]] = {}
+    voice = "1"
+    positions: dict[str, int] = {}
+    groups: dict[tuple[str, str, int], list[tuple[ET.Element, int]]] = {}
     for note in measure.findall("note"):
         staff_el = note.findtext("staff")
         if staff_el:
             staff = staff_el
+        voice_el = note.findtext("voice")
+        if voice_el:
+            voice = voice_el
         if note.find("chord") is not None:
             continue
         duration = int(note.findtext("duration") or 0)
         is_rest = note.find("rest") is not None
+        position = positions.get(voice, 0)
         if not is_rest and duration <= divisions / 2 + 1e-6:
-            groups.setdefault((staff, position // max(1, group_ticks)), []).append((note, duration))
+            groups.setdefault((staff, voice, position // max(1, group_ticks)), []).append((note, duration))
         position += duration
+        positions[voice] = position
     for members in groups.values():
         if len(members) < 2:
             continue
@@ -273,12 +298,13 @@ def _sanitise_beams(measure: ET.Element) -> None:
     group left with a single note loses its beam, which is what music21 reports as
     "beamspans left without ending".
     """
-    per_key: dict[tuple[str, int], list[tuple[ET.Element, ET.Element, str]]] = {}
+    per_key: dict[tuple[str, str, int], list[tuple[ET.Element, ET.Element, str]]] = {}
     for note in measure.findall("note"):
         staff = note.findtext("staff") or "1"
+        voice = note.findtext("voice") or "1"
         for beam in note.findall("beam"):
             number = int(beam.get("number", "1"))
-            per_key.setdefault((staff, number), []).append((note, beam, (beam.text or "").strip()))
+            per_key.setdefault((staff, voice, number), []).append((note, beam, (beam.text or "").strip()))
     for beams in per_key.values():
         if len(beams) < 2:
             for note, beam, _state in beams:
@@ -348,6 +374,7 @@ def _note(
     divisions: int,
     chord: bool = False,
     beams: list[tuple[int, str]] | None = None,
+    voice: int = 1,
 ) -> None:
     if note.step is not None and note.octave is not None:
         step, alter, octave = note.step, note.alter, note.octave
@@ -379,7 +406,7 @@ def _note(
     ET.SubElement(el, "staff").text = str(staff)
 
 
-def _rest(measure: ET.Element, duration: int, staff: int, divisions: int) -> None:
+def _rest(measure: ET.Element, duration: int, staff: int, divisions: int, voice: int = 1) -> None:
     """Fill a gap with one or more rests of written values (D-054).
 
     A single rest of, say, 5 ticks has no note value either, so the gap is split
@@ -390,15 +417,15 @@ def _rest(measure: ET.Element, duration: int, staff: int, divisions: int) -> Non
         chunk = _fit_duration(remaining, remaining, divisions)
         if chunk <= 0:
             break
-        _rest_chunk(measure, chunk, staff, divisions)
+        _rest_chunk(measure, chunk, staff, divisions, voice)
         remaining -= chunk
 
 
-def _rest_chunk(measure: ET.Element, duration: int, staff: int, divisions: int) -> None:
+def _rest_chunk(measure: ET.Element, duration: int, staff: int, divisions: int, voice: int = 1) -> None:
     el = ET.SubElement(measure, "note")
     ET.SubElement(el, "rest")
     ET.SubElement(el, "duration").text = str(duration)
-    ET.SubElement(el, "voice").text = "1"
+    ET.SubElement(el, "voice").text = str(voice)
     type_name, dots = _note_type(duration, divisions)
     ET.SubElement(el, "type").text = type_name
     for _ in range(dots):
