@@ -141,8 +141,13 @@ def build_timemap(
         refined: dict[int, float] = {}
         for number, value in measures.items():
             onset = float(value)
-            nearest = min(downbeats, key=lambda candidate: abs(candidate - onset))
-            refined[number] = nearest if abs(nearest - onset) <= tolerance else onset
+            nearest = float(downbeats[0])
+            best = abs(nearest - onset)
+            for candidate in downbeats:
+                distance = abs(float(candidate) - onset)
+                if distance < best:
+                    nearest, best = float(candidate), distance
+            refined[number] = nearest if best <= tolerance else onset
         measures = refined
     filled: list[dict] = []
     previous = 0.0
