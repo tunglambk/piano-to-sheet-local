@@ -258,17 +258,19 @@ def _sanitise_ties(part: ET.Element) -> None:
     `start` is left dangling, and music21 reports "tie ... identical values in
     @startid and @endid". Unmatched starts are removed here.
     """
-    pending: list[ET.Element] = []
+    pending: dict[tuple[str, str], list[ET.Element]] = {}
     for note in part.iter("note"):
         tie = note.find("tie")
         if tie is None:
             continue
+        key = (note.findtext("staff") or "1", note.findtext("voice") or "1")
         kind = tie.get("type")
         if kind == "start":
-            pending.append(note)
-        elif kind == "stop" and pending:
-            pending.pop()
-    for note in pending:
+            pending.setdefault(key, []).append(note)
+        elif kind == "stop" and pending.get(key):
+            pending[key].pop()
+    unresolved = [note for notes in pending.values() for note in notes]
+    for note in unresolved:
         for tie in list(note.findall("tie")):
             if tie.get("type") == "start":
                 note.remove(tie)

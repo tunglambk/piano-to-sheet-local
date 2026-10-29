@@ -18,8 +18,11 @@ from p2s.engines.base import EngineBase
 KRUMHANSL_MAJOR = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
 KRUMHANSL_MINOR = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
 SEMITONES = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
-MAJOR_FIFTHS = {0: 0, 1: 7, 2: 2, 3: 9, 4: 4, 5: 11, 6: 6, 7: 1, 8: 8, 9: 3, 10: 10, 11: 5}
-MINOR_FIFTHS = {0: 3, 1: 10, 2: 5, 3: 0, 4: 7, 5: 2, 6: 9, 7: 4, 8: 11, 9: 6, 10: 1, 11: 8}
+# Circle of fifths, tonic pitch class -> number of sharps (negative = flats).
+# These tables were wrong before D-067 (C major carried 3, A minor 6), which is why
+# key estimates came out with absurd signatures.
+MAJOR_FIFTHS = {0: 0, 7: 1, 2: 2, 9: 3, 4: 4, 11: 5, 6: 6, 1: 7, 5: -1, 10: -2, 3: -3, 8: -4}
+MINOR_FIFTHS = {pc: MAJOR_FIFTHS[(pc + 3) % 12] for pc in range(12)}
 SHARP_SPELLINGS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 FLAT_SPELLINGS = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]
 NOTE_TYPES = [
@@ -60,24 +63,13 @@ def _estimate_key(perf: Performance, hint: str | None) -> tuple[int, str, str]:
         pc = SEMITONES.get(tonic, 0)
         fifths = (MINOR_FIFTHS if mode == "minor" else MAJOR_FIFTHS)[pc]
         return fifths, mode, f"{tonic} {mode}"
-    histogram = np.zeros(12, dtype=float)
-    for note in perf.notes:
-        histogram[note.pitch % 12] += max(1e-3, note.offset - note.onset)
-    if histogram.sum() <= 0:
-        return 0, "major", "C major"
-    best = (-1e9, 0, "major")
-    for pc in range(12):
-        rotated = np.roll(histogram, -pc)
-        major = float(np.dot(rotated, KRUMHANSL_MAJOR))
-        minor = float(np.dot(rotated, KRUMHANSL_MINOR))
-        if major > best[0]:
-            best = (major, pc, "major")
-        if minor > best[0]:
-            best = (minor, pc, "minor")
-    _, pc, mode = best
-    fifths = (MINOR_FIFTHS if mode == "minor" else MAJOR_FIFTHS)[pc]
-    names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-    return fifths, mode, f"{names[pc]} {mode}"
+    # Both key estimators tried here failed on short excerpts: the Krumhansl
+    # profile picked 7–11 sharps (D-049), and scoring candidates by the accidentals
+    # they would need picked 5 sharps for an E flat major piece (D-067). A wrong
+    # signature is worse than none — it puts accidentals on every altered note and
+    # misleads the reader — so the neutral default stands until a reliable key
+    # source is available (the score model does provide one).
+    return 0, "major", "C major"
 
 
 class RuleQuantizer(EngineBase):
