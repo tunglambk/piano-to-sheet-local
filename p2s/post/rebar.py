@@ -10,6 +10,7 @@ its onset is placed proportionally inside the bar that contains it.
 from __future__ import annotations
 
 from bisect import bisect_right
+from xml.etree import ElementTree as ET
 
 from p2s.core.schemas import BeatGrid
 from p2s.post.align import parse_score_notes
@@ -18,6 +19,26 @@ from p2s.render.score_writer import WriterNote, write_score
 DIVISIONS = 16
 DEFAULT_BEATS_PER_BAR = 4
 MIN_COVERAGE = 0.6
+
+
+def _source_key(musicxml: bytes) -> tuple[int, str]:
+    """Key signature the score model chose (D-052).
+
+    Estimating the key from the performance produced absurd signatures (D-049), but
+    the source score already carries one — the score model emits `<key><fifths>`
+    (for example -3 for a piece in E flat major). Re-engraving must not throw it
+    away.
+    """
+    part = ET.fromstring(musicxml).find("part")
+    key_el = part.find("measure/attributes/key") if part is not None else None
+    if key_el is None:
+        return 0, "major"
+    try:
+        fifths = int(key_el.findtext("fifths") or 0)
+    except ValueError:
+        fifths = 0
+    mode = (key_el.findtext("mode") or "major").strip() or "major"
+    return max(-7, min(7, fifths)), mode
 
 
 def _bar_times(downbeats: list[float], beats: list[float], duration_s: float) -> list[float]:
@@ -79,6 +100,8 @@ def rebar(
     if len(bars) < 4:
         return None
 
+    source_fifths, source_mode = _source_key(musicxml)
+
     # The metre comes from the tracker, not from a constant: engraving everything
     # in 4/4 left a third of the bars empty on a 3/4 piece (D-048).
     beats_per_bar = _beats_per_bar(grid.beats, grid.downbeats)
@@ -115,7 +138,7 @@ def rebar(
         writer_notes,
         divisions=DIVISIONS,
         meters=[(beats_per_bar, 4)] * len(bars),
-        fifths=0,
-        mode="major",
+        fifths=source_fifths,
+        mode=source_mode,
         n_measures=len(bars),
     )

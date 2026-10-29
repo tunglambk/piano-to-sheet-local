@@ -177,8 +177,32 @@ def write_score(
                 index += 1
             if cursor < lengths[m]:
                 _rest(measure, lengths[m] - cursor, staff, divisions)
+        _sanitise_beams(measure)
     ET.indent(root)
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
+def _sanitise_beams(measure: ET.Element) -> None:
+    """Keep every beam span valid inside its measure (D-052).
+
+    Bar clipping can leave a group with one emitted note (a beam that starts and
+    ends on itself) or a `begin` without its `end`. music21 reports both, so the
+    spans are repaired here: a lone beam is removed, a dangling one becomes `end`.
+    """
+    notes = measure.findall("note")
+    per_number: dict[int, list[tuple[ET.Element, ET.Element, str]]] = {}
+    for note in notes:
+        for beam in note.findall("beam"):
+            number = int(beam.get("number", "1"))
+            per_number.setdefault(number, []).append((note, beam, (beam.text or "").strip()))
+    for beams in per_number.values():
+        if len(beams) < 2:
+            for note, beam, _state in beams:
+                note.remove(beam)
+            continue
+        states = [state for _note, _beam, state in beams]
+        if states[0] == "begin" and "end" not in states:
+            beams[-1][1].text = "end"
 
 
 def _beam_group_ticks(beats: int, beat_type: int, beat_ticks: int) -> int:
