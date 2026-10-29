@@ -72,6 +72,29 @@ def _note_type(duration: int, divisions: int) -> tuple[str, int]:
     return best[1], best[2]
 
 
+def _representable_ticks(divisions: int) -> list[int]:
+    """Every duration that can be written as a note value with up to two dots."""
+    values = {
+        int(round(base * divisions * factor)) for base, _name in NOTE_BASES for factor in (1.0, 1.5, 1.75)
+    }
+    return sorted(v for v in values if v > 0)
+
+
+def _fit_duration(duration: int, available: int, divisions: int) -> int:
+    """Largest representable duration that fits (D-054).
+
+    A note clipped to a bar used to end on an arbitrary tick (`5`, `7`, `9`), which
+    no note value can express, so the file carried `<duration>` values its own
+    `<type>` contradicted. Rounding down to a representable value keeps type, dots
+    and duration in agreement.
+    """
+    if available <= 0:
+        return 0
+    limit = min(duration, available)
+    candidates = [value for value in _representable_ticks(divisions) if value <= limit]
+    return max(candidates) if candidates else min(_representable_ticks(divisions))
+
+
 def _measure_lengths(divisions: int, meters: list[tuple[int, int]], n_measures: int) -> list[int]:
     lengths = []
     for index in range(n_measures):
@@ -178,7 +201,7 @@ def write_score(
                 )
                 longest = 0
                 for chord_index, (chord_note, _o, chord_duration, chord_tie, chord_id) in enumerate(group):
-                    clipped = min(chord_duration, lengths[m] - cursor)
+                    clipped = _fit_duration(chord_duration, lengths[m] - cursor, divisions)
                     if clipped <= 0:
                         continue
                     _note(
@@ -204,19 +227,20 @@ def write_score(
 
 
 def _sanitise_beams(measure: ET.Element) -> None:
-    """Keep every beam span valid inside its measure (D-052).
+    """Keep every beam span valid for its staff inside the measure (D-055).
 
-    Bar clipping can leave a group with one emitted note (a beam that starts and
-    ends on itself) or a `begin` without its `end`. music21 reports both, so the
-    spans are repaired here: a lone beam is removed, a dangling one becomes `end`.
+    Beam numbers are per voice, not per measure: staff 1's `begin` must not be
+    paired with staff 2's `end`. Grouping by (staff, number) fixes that, and a
+    group left with a single note loses its beam, which is what music21 reports as
+    "beamspans left without ending".
     """
-    notes = measure.findall("note")
-    per_number: dict[int, list[tuple[ET.Element, ET.Element, str]]] = {}
-    for note in notes:
+    per_key: dict[tuple[str, int], list[tuple[ET.Element, ET.Element, str]]] = {}
+    for note in measure.findall("note"):
+        staff = note.findtext("staff") or "1"
         for beam in note.findall("beam"):
             number = int(beam.get("number", "1"))
-            per_number.setdefault(number, []).append((note, beam, (beam.text or "").strip()))
-    for beams in per_number.values():
+            per_key.setdefault((staff, number), []).append((note, beam, (beam.text or "").strip()))
+    for beams in per_key.values():
         if len(beams) < 2:
             for note, beam, _state in beams:
                 note.remove(beam)
@@ -319,6 +343,21 @@ def _note(
 
 
 def _rest(measure: ET.Element, duration: int, staff: int, divisions: int) -> None:
+    """Fill a gap with one or more rests of written values (D-054).
+
+    A single rest of, say, 5 ticks has no note value either, so the gap is split
+    into representable chunks instead of one impossible duration.
+    """
+    remaining = duration
+    while remaining > 0:
+        chunk = _fit_duration(remaining, remaining, divisions)
+        if chunk <= 0:
+            break
+        _rest_chunk(measure, chunk, staff, divisions)
+        remaining -= chunk
+
+
+def _rest_chunk(measure: ET.Element, duration: int, staff: int, divisions: int) -> None:
     el = ET.SubElement(measure, "note")
     ET.SubElement(el, "rest")
     ET.SubElement(el, "duration").text = str(duration)
