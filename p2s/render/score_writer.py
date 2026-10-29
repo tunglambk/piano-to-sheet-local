@@ -181,6 +181,17 @@ def write_score(
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
 
 
+def _beam_group_ticks(beats: int, beat_type: int, beat_ticks: int) -> int:
+    """Beaming unit inside a bar (D-051).
+
+    Simple metres beam per beat; compound metres (6/8, 9/8, 12/8) beam in groups
+    of three eighths, which is what a reader expects to see.
+    """
+    if beat_type == 8 and beats % 3 == 0:
+        return 3 * beat_ticks
+    return beat_ticks
+
+
 def _beam_specs(
     entries: list[tuple[WriterNote, int, int, str | None, str]],
     divisions: int,
