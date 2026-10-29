@@ -221,9 +221,47 @@ def write_score(
                 index += 1
             if cursor < lengths[m]:
                 _rest(measure, lengths[m] - cursor, staff, divisions)
+        measure_ticks = int(divisions * beats * 4 / max(1, beat_type))
+        measure_beat_ticks = measure_ticks // max(1, beats)
+        _apply_beams(measure, divisions, _beam_group_ticks(beats, beat_type, measure_beat_ticks))
         _sanitise_beams(measure)
     ET.indent(root)
     return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
+def _apply_beams(measure: ET.Element, divisions: int, group_ticks: int) -> None:
+    """Add beams to the emitted notes, after clipping (D-056).
+
+    Beaming used to be decided from the pre-clipping note list, so a group could
+    lose a member to the bar cut and leave a `begin` with nothing to close it.
+    Working on the emitted notes makes every span valid by construction.
+    """
+    staff = "1"
+    position = 0
+    groups: dict[tuple[str, int], list[tuple[ET.Element, int]]] = {}
+    for note in measure.findall("note"):
+        staff_el = note.findtext("staff")
+        if staff_el:
+            staff = staff_el
+        if note.find("chord") is not None:
+            continue
+        duration = int(note.findtext("duration") or 0)
+        is_rest = note.find("rest") is not None
+        if not is_rest and duration <= divisions / 2 + 1e-6:
+            groups.setdefault((staff, position // max(1, group_ticks)), []).append((note, duration))
+        position += duration
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        for index, (note, duration) in enumerate(members):
+            state = "begin" if index == 0 else ("end" if index == len(members) - 1 else "continue")
+            levels = 1
+            if duration <= divisions / 4 + 1e-6:
+                levels = 2
+            if duration <= divisions / 8 + 1e-6:
+                levels = 3
+            for level in range(1, levels + 1):
+                ET.SubElement(note, "beam", number=str(level)).text = state
 
 
 def _sanitise_beams(measure: ET.Element) -> None:
@@ -330,9 +368,7 @@ def _note(
     ET.SubElement(el, "type").text = type_name
     for _ in range(dots):
         ET.SubElement(el, "dot")
-    if beams and not chord:
-        for number, state in beams:
-            ET.SubElement(el, "beam", number=str(number)).text = state
+
     if tie:
         notations = ET.SubElement(el, "notations")
         if tie in ("start", "both"):
