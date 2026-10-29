@@ -119,7 +119,9 @@ def rebar(
         start = int(round((onset - bar_start) / width * bar_ticks))
         end = int(round((offset - bar_start) / width * bar_ticks))
         start = max(0, min(bar_ticks - 1, start))
-        end = max(start + 1, min(bar_ticks, end))
+        # A note may sustain past the bar line: the writer splits it into tied
+        # segments, which is what a real score does (D-062, reversing D-060).
+        end = max(start + 1, min(2 * bar_ticks, end))
         writer_notes.append(
             WriterNote(
                 pitch=note.pitch,

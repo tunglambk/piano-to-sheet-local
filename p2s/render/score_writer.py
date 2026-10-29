@@ -201,7 +201,8 @@ def write_score(
                 )
                 longest = 0
                 for chord_index, (chord_note, _o, chord_duration, chord_tie, chord_id) in enumerate(group):
-                    clipped = _fit_duration(chord_duration, lengths[m] - cursor, divisions)
+                    available = max(1, lengths[m] - offset)
+                    clipped = _fit_duration(chord_duration, available, divisions)
                     if clipped <= 0:
                         continue
                     _note(
