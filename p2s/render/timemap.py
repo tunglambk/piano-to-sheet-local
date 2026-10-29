@@ -134,11 +134,14 @@ def build_timemap(
     # nearest downbeat within half a bar is robust to that assumption being false,
     # which is what a bar-level edit (dropping an empty bar) breaks.
     if grid is not None and len(grid.downbeats) >= 4 and measures:
-        gaps = sorted(b - a for a, b in zip(grid.downbeats, grid.downbeats[1:], strict=False))
+        downbeats: list[float] = [float(value) for value in grid.downbeats]
+        gaps: list[float] = [b - a for a, b in zip(downbeats, downbeats[1:], strict=False)]
+        gaps.sort()
         tolerance = 0.5 * gaps[len(gaps) // 2] if gaps else 0.0
         refined: dict[int, float] = {}
-        for number, onset in measures.items():
-            nearest = min(grid.downbeats, key=lambda value: abs(value - onset))
+        for number, value in measures.items():
+            onset = float(value)
+            nearest = min(downbeats, key=lambda candidate: abs(candidate - onset))
             refined[number] = nearest if abs(nearest - onset) <= tolerance else onset
         measures = refined
     filled: list[dict] = []
