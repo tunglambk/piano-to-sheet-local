@@ -128,6 +128,19 @@ def build_timemap(
     snapped = _downbeat_onsets(grid.downbeats, total) if grid is not None and grid.downbeats else None
     if snapped is not None:
         measures = dict(snapped)
+
+    # Time-based refinement (D-059): the index mapping above assumes the score and
+    # the tracker have the same number of bars. Snapping each estimate to the
+    # nearest downbeat within half a bar is robust to that assumption being false,
+    # which is what a bar-level edit (dropping an empty bar) breaks.
+    if grid is not None and len(grid.downbeats) >= 4 and measures:
+        gaps = sorted(b - a for a, b in zip(grid.downbeats, grid.downbeats[1:], strict=False))
+        tolerance = 0.5 * gaps[len(gaps) // 2] if gaps else 0.0
+        refined: dict[int, float] = {}
+        for number, onset in measures.items():
+            nearest = min(grid.downbeats, key=lambda value: abs(value - onset))
+            refined[number] = nearest if abs(nearest - onset) <= tolerance else onset
+        measures = refined
     filled: list[dict] = []
     previous = 0.0
     for number, onset in _dense_measures(measures, total):
