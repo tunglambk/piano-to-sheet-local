@@ -46,7 +46,9 @@ def render_pdf(
             # (D-079). The extra library directory is where scripts/setup_musescore.sh
             # extracts the one system library the bundle does not ship.
             extra_lib = REPO_ROOT / ".tools" / "mscore-libs"
-            command = [str(musescore), "-o", str(out_pdf), str(src)]
+            # `-f` is mandatory: without it the 4.x CLI exits 40 and writes nothing,
+            # even when the output path does not exist yet (D-086).
+            command = [str(musescore), "-f", "-o", str(out_pdf), str(src)]
             env = dict(os.environ)
             if extra_lib.exists():
                 existing = env.get("LD_LIBRARY_PATH", "")

@@ -433,13 +433,16 @@ def _note(
     for _ in range(dots):
         ET.SubElement(el, "dot")
 
+    # MusicXML fixes the order of a note's children: pitch, duration, tie, voice,
+    # type, dot, staff, beam, notations. Emitting <staff> after <beam>/<notations>
+    # is schema-invalid and MuseScore refuses the file (D-086).
+    ET.SubElement(el, "staff").text = str(staff)
     if tie:
         notations = ET.SubElement(el, "notations")
         if tie in ("start", "both"):
             ET.SubElement(notations, "tied", type="start")
         if tie in ("stop", "both"):
             ET.SubElement(notations, "tied", type="stop")
-    ET.SubElement(el, "staff").text = str(staff)
 
 
 def _rest(measure: ET.Element, duration: int, staff: int, divisions: int, voice: int = 1) -> None:
