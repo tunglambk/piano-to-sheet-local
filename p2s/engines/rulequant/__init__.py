@@ -164,7 +164,29 @@ class RuleQuantizer(EngineBase):
         n_measures = self._layout(notes, bar_ticks)
         self._clip_overlaps(notes)
         fifths, mode, key_name = _estimate_key(perf, opts.key_hint)
-        xml = self._write(notes, n_measures, divisions, beats_per_bar, fifths, mode)
+        # One writer for both presets (D-071): the rebar path's writer already
+        # guarantees voices, ties, beams and writable durations, so the CPU path
+        # uses it instead of its own sequential emitter.
+        from p2s.render.score_writer import WriterNote, write_score
+
+        writer_notes = [
+            WriterNote(
+                pitch=note.pitch,
+                start_tick=note.start_tick,
+                end_tick=note.end_tick,
+                staff=note.staff,
+                note_id=f"n{note.staff}-{note.measure}-{note.index}",
+            )
+            for note in notes
+        ]
+        xml = write_score(
+            writer_notes,
+            divisions=divisions,
+            meters=[(beats_per_bar, 4)] * max(1, n_measures),
+            fifths=fifths,
+            mode=mode,
+            n_measures=max(1, n_measures),
+        )
         return ScoreDoc(musicxml=xml, alignment=None, key=key_name, warnings=warnings)
 
     # ---------------------------------------------------------------- helpers
