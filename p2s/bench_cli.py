@@ -248,6 +248,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         print(f"[{index}/{len(items)}] {item['id']} {status} omr={value}", flush=True)
     summary = summarize(args.system, values)
+    # A score-less suite has no OMR values, so the failure count must come from the
+    # per-item status, not from the metric values (D-085).
+    summary["n_fail"] = sum(1 for row in rows if row["status"] != "ok")
     scored_notes = [row["note_f1"] for row in rows if row.get("note_f1") is not None]
     if scored_notes:
         summary["note_f1_mean"] = round(sum(scored_notes) / len(scored_notes), 4)
