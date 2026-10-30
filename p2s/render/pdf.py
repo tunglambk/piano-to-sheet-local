@@ -41,10 +41,24 @@ def render_pdf(
         with tempfile.TemporaryDirectory() as tmp:
             src = Path(tmp) / "score.musicxml"
             src.write_bytes(musicxml)
-            env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+            # MuseScore 4 needs an X display even headless: the offscreen Qt plugin
+            # fails inside the AppImage, so it runs under Xvfb when that is present
+            # (D-079). The extra library directory is where scripts/setup_musescore.sh
+            # extracts the one system library the bundle does not ship.
+            extra_lib = REPO_ROOT / ".tools" / "mscore-libs"
+            command = [str(musescore), "-o", str(out_pdf), str(src)]
+            env = dict(os.environ)
+            if extra_lib.exists():
+                existing = env.get("LD_LIBRARY_PATH", "")
+                env["LD_LIBRARY_PATH"] = f"{extra_lib}:{existing}" if existing else str(extra_lib)
+            xvfb = shutil.which("xvfb-run")
+            if xvfb:
+                command = [xvfb, "-a", *command]
+            else:
+                env["QT_QPA_PLATFORM"] = "offscreen"
             try:
                 proc = subprocess.run(
-                    [str(musescore), "-o", str(out_pdf), str(src)],
+                    command,
                     capture_output=True,
                     text=True,
                     timeout=timeout_s,
