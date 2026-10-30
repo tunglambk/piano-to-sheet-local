@@ -45,6 +45,7 @@
         <duration>12</duration>
         <voice>1</voice>
         <type>eighth</type>
+        <dot />
         <staff>2</staff>
       </note>
       <note>
@@ -62,6 +63,7 @@
         <duration>12</duration>
         <voice>1</voice>
         <type>eighth</type>
+        <dot />
         <staff>2</staff>
       </note>
       <note>
@@ -79,6 +81,7 @@
         <duration>12</duration>
         <voice>1</voice>
         <type>eighth</type>
+        <dot />
         <staff>2</staff>
       </note>
       <note>
@@ -96,6 +99,7 @@
         <duration>12</duration>
         <voice>1</voice>
         <type>eighth</type>
+        <dot />
         <staff>2</staff>
       </note>
       <note>
@@ -115,6 +119,7 @@
         <duration>12</duration>
         <voice>1</voice>
         <type>eighth</type>
+        <dot />
         <staff>1</staff>
       </note>
       <note>
@@ -132,6 +137,7 @@
         <duration>12</duration>
         <voice>1</voice>
         <type>eighth</type>
+        <dot />
         <staff>1</staff>
       </note>
       <note>
@@ -149,6 +155,7 @@
         <duration>12</duration>
         <voice>1</voice>
         <type>eighth</type>
+        <dot />
         <staff>1</staff>
       </note>
       <note>
@@ -166,6 +173,7 @@
         <duration>12</duration>
         <voice>1</voice>
         <type>eighth</type>
+        <dot />
         <staff>1</staff>
       </note>
       <note>
@@ -202,6 +210,7 @@
         <duration>12</duration>
         <voice>1</voice>
         <type>eighth</type>
+        <dot />
         <staff>1</staff>
       </note>
       <note>
@@ -219,6 +228,7 @@
         <duration>12</duration>
         <voice>1</voice>
         <type>eighth</type>
+        <dot />
         <staff>1</staff>
       </note>
       <note>
@@ -239,6 +249,7 @@
         <duration>12</duration>
         <voice>1</voice>
         <type>eighth</type>
+        <dot />
         <staff>2</staff>
       </note>
       <note>
@@ -256,19 +267,27 @@
         <duration>12</duration>
         <voice>1</voice>
         <type>eighth</type>
+        <dot />
         <staff>2</staff>
       </note>
       <note>
         <rest />
-        <duration>36</duration>
+        <duration>32</duration>
         <voice>1</voice>
-        <type>quarter</type>
+        <type>half</type>
+        <staff>2</staff>
+      </note>
+      <note>
+        <rest />
+        <duration>4</duration>
+        <voice>1</voice>
+        <type>16th</type>
         <staff>2</staff>
       </note>
     </measure>
   </part>
   <identification>
     <encoding />
-    <software>p2s 0.1.1</software>
+    <software>p2s 0.9.0</software>
   </identification>
 </score-partwise>
