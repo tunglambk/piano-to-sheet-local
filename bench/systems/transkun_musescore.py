@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
 
-from p2s.render.pdf import find_musescore
+from p2s.render.pdf import musescore_invocation
 
 
 def _via_music21(performance_mid: Path, out_musicxml: Path) -> bool:
@@ -27,17 +26,16 @@ def _via_music21(performance_mid: Path, out_musicxml: Path) -> bool:
 
 
 def to_musicxml(performance_mid: Path, out_musicxml: Path, timeout_s: float = 300.0) -> bool:
-    mscore = find_musescore()
-    if mscore is None:
+    invocation = musescore_invocation(performance_mid, out_musicxml)
+    if invocation is None:
         return _via_music21(performance_mid, out_musicxml)
-    proc = subprocess.run(
-        [str(mscore), "-o", str(out_musicxml), str(performance_mid)],
-        capture_output=True,
-        text=True,
-        timeout=timeout_s,
-        check=False,
-        env=dict(os.environ, QT_QPA_PLATFORM="offscreen"),
-    )
-    if proc.returncode == 0 and out_musicxml.exists():
+    command, env = invocation
+    try:
+        proc = subprocess.run(
+            command, capture_output=True, text=True, timeout=timeout_s, check=False, env=env
+        )
+    except subprocess.TimeoutExpired:
+        return _via_music21(performance_mid, out_musicxml)
+    if proc.returncode == 0 and out_musicxml.exists() and out_musicxml.stat().st_size > 0:
         return True
     return _via_music21(performance_mid, out_musicxml)
