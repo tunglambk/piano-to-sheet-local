@@ -274,3 +274,27 @@ entries:
       Installs on Python 3.10 only (imports collections.MutableSequence). The
       code is BSD; some bundled models are CC BY-NC-SA, which the project's
       noncommercial stance (D-001, D-027) already covers.
+  - name: MAPS (ENSTDkCl subset)
+    kind: asset
+    version: "0.4 (2008), Zenodo record 18160555"
+    license: "CC BY-NC-SA 2.0 FR"
+    scope: bench
+    usage: bundled-asset
+    evidence: "data/datasets/maps/license.txt from the Zenodo record"
+    notes: >
+      Real Disklavier recordings with aligned score MIDI, used only as an
+      evaluation set (D-003: datasets never enter the repository and are never
+      trained on). Non-commercial and share-alike, which the project's
+      noncommercial stance (D-001, D-027) covers; the underlying MIDI comes from
+      Bernd Krueger's CC BY-NC-SA collection, credited in the record's readme.
+  - name: Saarland Music Data (SMD-piano v2)
+    kind: asset
+    version: "v2 (2024), Zenodo record 13753319"
+    license: "CC BY-NC-SA 3.0"
+    scope: bench
+    usage: bundled-asset
+    evidence: "Zenodo record licence field and the record's readme"
+    notes: >
+      Disklavier recordings with performance MIDI and per-note CSV annotations in
+      audio time. Evaluation only (D-003), never trained on. It has no score, so it
+      serves the note-level metric (L2) and not the sheet metric (D-082).

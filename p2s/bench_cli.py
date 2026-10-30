@@ -53,7 +53,47 @@ def _items(suite: str, limit: int, condition: str | None = None) -> list[dict]:
         if condition:
             out = [entry for entry in out if entry["condition"] == condition]
         return out[:limit] if limit else out
-    raise P2SError(f"unknown suite {suite!r} (Phase 1 knows p2s_open_dev and p2s_open_test)")
+    # Any other suite follows the same shape: a frozen split under bench/splits/
+    # and an item index under data/bench/datasets/<name>/items.json (D-083). This is
+    # what lets a public dataset (MAPS, SMD) be scored without touching this file.
+    split = "test" if suite.endswith("_test") else "dev"
+    name = (
+        suite[: -len("_dev")]
+        if suite.endswith("_dev")
+        else suite[: -len("_test")]
+        if suite.endswith("_test")
+        else suite
+    )
+    index_path = DATA / "bench" / "datasets" / name / "items.json"
+    split_path = REPO_ROOT / "bench" / "splits" / f"{name}_v0.json"
+    if not index_path.exists() or not split_path.exists():
+        raise P2SError(
+            f"unknown suite {suite!r}: expected {index_path.relative_to(REPO_ROOT)} and "
+            f"{split_path.relative_to(REPO_ROOT)}"
+        )
+    index = json.loads(index_path.read_text())
+    manifest = json.loads(split_path.read_text())
+    allowed = set(manifest.get(split, []))
+    items = [entry for entry in index if entry.get("item_id") in allowed]
+    out = []
+    for entry in items:
+        item_dir = REPO_ROOT / entry["path"]
+        meta_path = item_dir / "meta.json"
+        meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+        out.append(
+            {
+                "id": entry["item_id"],
+                "audio": item_dir / "audio.wav",
+                "gt_score": item_dir / "score.musicxml",
+                "gt_performance": item_dir / "performance.mid",
+                "start_s": float(entry.get("start_s") or meta.get("start_s") or 0.0),
+                "duration_s": float(meta.get("duration_s") or 0.0),
+                "condition": entry.get("condition", "real"),
+            }
+        )
+    if condition:
+        out = [entry for entry in out if entry["condition"] == condition]
+    return out[:limit] if limit else out
 
 
 def _run_preset(
@@ -185,9 +225,12 @@ def cmd_run(args: argparse.Namespace) -> int:
             else:
                 produced = _run_baseline(item)
             musicxml = produced[0] if produced else None
-            value = omr_ned(musicxml, item["gt_score"]) if musicxml else None
-            status = "ok" if value is not None else "fail"
+            # A dataset without a score (SMD) still contributes the note-level
+            # metric; a missing reference is a coverage gap, not a failed run (D-085).
+            has_score = Path(item.get("gt_score") or "").exists()
+            value = omr_ned(musicxml, item["gt_score"]) if musicxml and has_score else None
             note_scores, playback = _extra_metrics(item, produced)
+            status = "ok" if (value is not None or note_scores.get("note_f1") is not None) else "fail"
         except P2SError as exc:
             value, status = None, f"error: {exc}"
         values[item["id"]] = value
@@ -205,6 +248,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         print(f"[{index}/{len(items)}] {item['id']} {status} omr={value}", flush=True)
     summary = summarize(args.system, values)
+    scored_notes = [row["note_f1"] for row in rows if row.get("note_f1") is not None]
+    if scored_notes:
+        summary["note_f1_mean"] = round(sum(scored_notes) / len(scored_notes), 4)
+        summary["note_f1_n"] = len(scored_notes)
     summary.update({"suite": args.suite, "split": args.split})
     out = RESULTS / f"{args.suite}_{args.system.replace(':', '_')}.json"
     out.write_text(json.dumps({"summary": summary, "items": rows}, indent=1) + "\n")

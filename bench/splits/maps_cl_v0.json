@@ -1,0 +1,36 @@
+{
+ "dev": [
+  "alb_se2",
+  "bk_xmas1",
+  "bk_xmas4",
+  "bk_xmas5",
+  "bor_ps6",
+  "chpn-e01",
+  "chpn-p19",
+  "deb_clai",
+  "deb_menu",
+  "grieg_butterfly",
+  "liz_et6",
+  "liz_et_trans5",
+  "liz_rhap09",
+  "mz_311_1",
+  "mz_331_2",
+  "mz_331_3",
+  "mz_332_2",
+  "mz_333_2"
+ ],
+ "test": [
+  "mz_333_3",
+  "mz_545_3",
+  "mz_570_1",
+  "pathetique_1",
+  "schu_143_3",
+  "schuim-1",
+  "scn15_11",
+  "scn15_12",
+  "scn16_3",
+  "scn16_4",
+  "ty_maerz",
+  "ty_mai"
+ ]
+}
