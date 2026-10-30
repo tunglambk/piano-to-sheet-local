@@ -207,6 +207,11 @@ def write_score(
                 else:
                     voices.append([chord])
                     voice_ends.append(offset + duration)
+            if not voices:
+                # A measure with nothing in it is not legal notation: fill the bar
+                # with a rest so every staff has content in every measure (D-070).
+                _rest(measure, lengths[m], staff, divisions, 1)
+                continue
             for voice_index, voice in enumerate(voices, start=1):
                 cursor = 0
                 for chord in voice:

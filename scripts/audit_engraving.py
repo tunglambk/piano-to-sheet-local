@@ -43,10 +43,14 @@ def audit_xml(path: Path) -> dict[str, object]:
     measures = part.findall("measure")
     mismatched = 0
     notes = 0
-    empty = 0
+    rest_only = 0
+    blank = 0
     for measure in measures:
-        if not [n for n in measure.findall("note") if n.find("rest") is None]:
-            empty += 1
+        elements = measure.findall("note")
+        if not elements:
+            blank += 1
+        elif not [n for n in elements if n.find("rest") is None]:
+            rest_only += 1
         for note in measure.findall("note"):
             written = note.findtext("type")
             if written is None:
@@ -66,7 +70,8 @@ def audit_xml(path: Path) -> dict[str, object]:
         "measures": len(measures),
         "notes": notes,
         "type_duration_mismatches": mismatched,
-        "empty_measures": empty,
+        "blank_measures": blank,
+        "rest_only_measures": rest_only,
         "beams": len(part.findall(".//beam")),
         "key_fifths": part.find("measure").findtext("attributes/key/fifths"),
         "beats": part.find("measure").findtext("attributes/time/beats"),
@@ -97,11 +102,12 @@ def main() -> int:
         dangling = [w for w in warnings if "without ending" in w or "identical values" in w]
         print(
             f"{row.get('file'):24} measures={row.get('measures')} notes={row.get('notes')} "
-            f"type/dur={row.get('type_duration_mismatches')} empty={row.get('empty_measures')} "
+            f"type/dur={row.get('type_duration_mismatches')} blank={row.get('blank_measures')} "
+            f"rest-only={row.get('rest_only_measures')} "
             f"beams={row.get('beams')} fifths={row.get('key_fifths')} beats={row.get('beats')} "
             f"beam-warnings={len(dangling)}"
         )
-        if row.get("type_duration_mismatches") or dangling:
+        if row.get("type_duration_mismatches") or dangling or row.get("blank_measures"):
             failures += 1
     return 1 if failures else 0
 
