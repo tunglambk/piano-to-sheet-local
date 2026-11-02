@@ -14,6 +14,7 @@ from xml.etree import ElementTree as ET
 
 from p2s.core.schemas import BeatGrid
 from p2s.post.align import parse_score_notes
+from p2s.post.hands import assign_staves
 from p2s.render.score_writer import WriterNote, write_score
 
 DIVISIONS = 16
@@ -92,6 +93,12 @@ def rebar(
     notes = parse_score_notes(musicxml)
     if not notes:
         return None
+    # The score model gives no hand assignment (D-091), so a two-staff sheet needs
+    # the split to be derived from the pitches themselves.
+    if all(note.staff == 1 for note in notes):
+        staves = assign_staves([note.pitch for note in notes])
+        for note, staff in zip(notes, staves, strict=False):
+            note.staff = staff
     aligned = [(note, alignment.get(note.note_id)) for note in notes]
     covered = sum(1 for _, value in aligned if value is not None)
     if covered < MIN_COVERAGE * len(notes):
