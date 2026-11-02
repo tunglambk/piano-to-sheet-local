@@ -145,10 +145,12 @@ def write_score(
     ET.SubElement(time_el, "beats").text = str(beats)
     ET.SubElement(time_el, "beat-type").text = str(beat_type)
     ET.SubElement(attrs, "staves").text = "2"
-    for number, sign, line in ((1, "G", "2"), (2, "F", "4")):
+    for number, sign, line, octave_change in _clefs_for(notes):
         clef = ET.SubElement(attrs, "clef", number=str(number))
         ET.SubElement(clef, "sign").text = sign
         ET.SubElement(clef, "line").text = line
+        if octave_change:
+            ET.SubElement(clef, "clef-octave-change").text = str(octave_change)
 
     # Segments per (staff, measure), ties at barlines, stable ids.
     segments: dict[tuple[int, int], list[tuple[WriterNote, int, int, str | None, str]]] = {}
@@ -299,6 +301,36 @@ def _sanitise_ties(part: ET.Element) -> None:
             for tied in list(notations.findall("tied")):
                 if tied.get("type") == "start":
                     notations.remove(tied)
+
+
+def _clefs_for(notes: list[WriterNote]) -> list[tuple[int, str, str, int]]:
+    """Pick a clef per staff from the register the notes actually use (D-099).
+
+    A fixed treble/bass pair draws ledger lines for everything outside the staff:
+    on a piece whose melody sits two octaves up, page one was mostly ledger lines,
+    and left-hand notes just under middle C were drawn on top of the treble staff.
+    """
+    by_staff: dict[int, list[int]] = {1: [], 2: []}
+    for note in notes:
+        by_staff.setdefault(note.staff, []).append(note.pitch)
+    clefs: list[tuple[int, str, str, int]] = []
+    for staff in (1, 2):
+        pitches = sorted(by_staff.get(staff) or [])
+        median = pitches[len(pitches) // 2] if pitches else (72 if staff == 1 else 48)
+        if staff == 1:
+            if median >= 84:
+                clefs.append((staff, "G", "2", 1))  # treble, 8va
+            elif median <= 55:
+                clefs.append((staff, "F", "4", 0))
+            else:
+                clefs.append((staff, "G", "2", 0))
+        elif median >= 60:
+            clefs.append((staff, "G", "2", 0))
+        elif median <= 40:
+            clefs.append((staff, "F", "4", -1))  # bass, 8vb
+        else:
+            clefs.append((staff, "F", "4", 0))
+    return clefs
 
 
 def _merge_rests(measure: ET.Element, divisions: int) -> None:
