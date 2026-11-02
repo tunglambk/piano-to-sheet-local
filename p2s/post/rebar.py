@@ -22,6 +22,8 @@ DEFAULT_BEATS_PER_BAR = 4
 MIN_COVERAGE = 0.6
 # One 16th note at DIVISIONS = 16 per quarter.
 QUANT_TICKS = 4
+# Two notes starting within this window are treated as one chord.
+CHORD_TOLERANCE_S = 0.025
 
 
 def _source_key(musicxml: bytes) -> tuple[int, str]:
@@ -116,11 +118,23 @@ def rebar(
     beats_per_bar = _beats_per_bar(grid.beats, grid.downbeats)
     bar_ticks = DIVISIONS * beats_per_bar
 
+    # Notes whose raw onsets are within CHORD_TOLERANCE_S sound together: they get
+    # one onset so the writer can engrave them as a chord, while a fast arpeggio
+    # keeps its separate onsets (D-096, reversing the grid-wide merging of D-092).
+    clustered: dict[str, float] = {}
+    timed = sorted(((value[0], note.note_id) for note, value in aligned if value is not None))
+    anchor: float | None = None
+    for onset, note_id in timed:
+        if anchor is None or onset - anchor > CHORD_TOLERANCE_S:
+            anchor = onset
+        clustered[note_id] = anchor
+
     writer_notes: list[WriterNote] = []
     for note, value in aligned:
         if value is None:
             continue
         onset, offset = value
+        onset = clustered.get(note.note_id, onset)
         index = max(0, min(len(bars) - 1, bisect_right(bars, onset) - 1))
         bar_start = bars[index]
         bar_end = bars[index + 1] if index + 1 < len(bars) else bar_start + (bars[-1] - bars[-2])

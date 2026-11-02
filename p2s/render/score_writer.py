@@ -501,10 +501,11 @@ def _note(
     else:
         step, alter, octave = spell(note.pitch, fifths)
     el = ET.SubElement(measure, "note", id=note_id)
-    # `<chord/>` is deliberately not emitted: merging notes that share a 1/16 grid
-    # slot into one chord measured 1.1–2.2 OMR points worse than writing them in
-    # sequence, because the reference scores keep those notes separate (D-092).
-    _ = chord
+    # `<chord/>` marks a note that sounds with the previous one. Only notes whose
+    # raw onsets are within 25 ms reach the same tick now (D-096), so a chord here
+    # means a real chord and not an arpeggio squeezed into one grid slot.
+    if chord:
+        ET.SubElement(el, "chord")
     pitch_el = ET.SubElement(el, "pitch")
     ET.SubElement(pitch_el, "step").text = step
     if alter:
