@@ -19,6 +19,8 @@ from p2s.render.score_writer import WriterNote, write_score
 DIVISIONS = 16
 DEFAULT_BEATS_PER_BAR = 4
 MIN_COVERAGE = 0.6
+# One 16th note at DIVISIONS = 16 per quarter.
+QUANT_TICKS = 4
 
 
 def _source_key(musicxml: bytes) -> tuple[int, str]:
@@ -116,12 +118,18 @@ def rebar(
         bar_start = bars[index]
         bar_end = bars[index + 1] if index + 1 < len(bars) else bar_start + (bars[-1] - bars[-2])
         width = max(1e-3, bar_end - bar_start)
+        # Snap to a 16th-note grid (D-089). Without this, mapping performance time
+        # into bar ticks produced arbitrary ticks — 57 % of the notes landed off the
+        # grid, most as 32nds and 64ths, and the gaps filled with 64th rests.
         start = int(round((onset - bar_start) / width * bar_ticks))
         end = int(round((offset - bar_start) / width * bar_ticks))
-        start = max(0, min(bar_ticks - 1, start))
+        start = max(0, min(bar_ticks - QUANT_TICKS, start))
+        start = int(round(start / QUANT_TICKS)) * QUANT_TICKS
         # A note may sustain past the bar line: the writer splits it into tied
         # segments, which is what a real score does (D-062, reversing D-060).
-        end = max(start + 1, min(2 * bar_ticks, end))
+        end = max(start + QUANT_TICKS, min(2 * bar_ticks, end))
+        end = int(round(end / QUANT_TICKS)) * QUANT_TICKS
+        end = max(start + QUANT_TICKS, end)
         writer_notes.append(
             WriterNote(
                 pitch=note.pitch,
