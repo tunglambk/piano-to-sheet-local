@@ -205,6 +205,30 @@ def _reengrave(root: ET.Element) -> bytes:
     )
 
 
+def _drop_empty_voices(root: ET.Element) -> int:
+    """Remove voices that contain only rests (D-107).
+
+    A voice whose notes were all clipped by the bar still emits its trailing rests,
+    and MuseScore draws those as a stray voice under the staff. Deleting them changes
+    no pitch and no duration: the surviving voice already fills the measure.
+    """
+    dropped = 0
+    for measure in root.iter("measure"):
+        pitched: set[tuple[str, str]] = set()
+        voices: set[tuple[str, str]] = set()
+        for note in measure.findall("note"):
+            key = (note.findtext("staff") or "1", note.findtext("voice") or "1")
+            voices.add(key)
+            if note.find("pitch") is not None:
+                pitched.add(key)
+        for key in voices - pitched:
+            for note in list(measure.findall("note")):
+                if (note.findtext("staff") or "1", note.findtext("voice") or "1") == key:
+                    measure.remove(note)
+                    dropped += 1
+    return dropped
+
+
 def _apply_tempo(root: ET.Element, bpm: float | None) -> None:
     """Write a metronome mark in the first measure (D-094).
 
@@ -350,6 +374,7 @@ def postprocess(
         ET.SubElement(identification, "encoding")
         ET.SubElement(identification, "software").text = f"p2s {__version__}"
 
+    _drop_empty_voices(root)
     _apply_metadata(root, title, composer)
     ET.indent(root)
     return ScoreDoc(
