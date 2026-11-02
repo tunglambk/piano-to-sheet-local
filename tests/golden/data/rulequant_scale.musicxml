@@ -1,5 +1,9 @@
 <?xml version='1.0' encoding='utf-8'?>
 <score-partwise version="4.0">
+  <identification>
+    <encoding />
+    <software>p2s 1.2.2</software>
+  </identification>
   <part-list>
     <score-part id="P1">
       <part-name>Piano</part-name>
@@ -237,8 +241,4 @@
       </note>
     </measure>
   </part>
-  <identification>
-    <encoding />
-    <software>p2s 1.0.2</software>
-  </identification>
 </score-partwise>
