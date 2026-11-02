@@ -206,11 +206,13 @@ def _reengrave(root: ET.Element) -> bytes:
 
 
 def _drop_empty_voices(root: ET.Element) -> int:
-    """Remove voices that contain only rests (D-107).
+    """Remove voices that contain only rests, without emptying a measure (D-107).
 
     A voice whose notes were all clipped by the bar still emits its trailing rests,
     and MuseScore draws those as a stray voice under the staff. Deleting them changes
-    no pitch and no duration: the surviving voice already fills the measure.
+    no pitch and no duration — but a measure where *every* voice was rest-only must
+    keep one full-bar rest, otherwise it becomes an empty `<measure>` with a stray
+    `<backup>` (found in the CPU preset, D-110).
     """
     dropped = 0
     for measure in root.iter("measure"):
@@ -221,11 +223,18 @@ def _drop_empty_voices(root: ET.Element) -> int:
             voices.add(key)
             if note.find("pitch") is not None:
                 pitched.add(key)
+        if not pitched:
+            # Nothing to keep: leave the measure untouched so it stays a legal bar.
+            continue
         for key in voices - pitched:
             for note in list(measure.findall("note")):
                 if (note.findtext("staff") or "1", note.findtext("voice") or "1") == key:
                     measure.remove(note)
                     dropped += 1
+        if not measure.findall("note"):
+            # Defensive: a measure must never end up empty.
+            for backup in list(measure.findall("backup")):
+                measure.remove(backup)
     return dropped
 
 

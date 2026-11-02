@@ -63,12 +63,12 @@ def _estimate_key(perf: Performance, hint: str | None) -> tuple[int, str, str]:
         pc = SEMITONES.get(tonic, 0)
         fifths = (MINOR_FIFTHS if mode == "minor" else MAJOR_FIFTHS)[pc]
         return fifths, mode, f"{tonic} {mode}"
-    # Both key estimators tried here failed on short excerpts: the Krumhansl
-    # profile picked 7–11 sharps (D-049), and scoring candidates by the accidentals
-    # they would need picked 5 sharps for an E flat major piece (D-067). A wrong
-    # signature is worse than none — it puts accidentals on every altered note and
-    # misleads the reader — so the neutral default stands until a reliable key
-    # source is available (the score model does provide one).
+    # Both unrestricted key estimators failed on short excerpts (D-049: 7–11
+    # sharps; D-067: 5 sharps for an E flat piece), and a constrained variant of the
+    # same idea failed too (D-110: 4/10 against the reference, with A major chosen
+    # for a piece in E flat). A wrong signature is worse than none, so the neutral
+    # default stands until a reliable key source exists — the score model has one,
+    # which is why the accurate preset does not need this.
     return 0, "major", "C major"
 
 
