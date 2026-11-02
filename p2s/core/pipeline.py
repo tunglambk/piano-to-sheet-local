@@ -106,6 +106,7 @@ def _transcribe(
 # Below this share of the performed notes, the score is missing music (D-101).
 NOTES_MIN_RATIO = 0.8
 
+
 class Pipeline:
     def __init__(
         self,
