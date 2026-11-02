@@ -248,6 +248,7 @@ def write_score(
                     ET.SubElement(backup, "duration").text = str(lengths[m])
         measure_ticks = int(divisions * beats * 4 / max(1, beat_type))
         measure_beat_ticks = measure_ticks // max(1, beats)
+        _merge_rests(measure, divisions)
         _apply_beams(measure, divisions, _beam_group_ticks(beats, beat_type, measure_beat_ticks))
         _sanitise_beams(measure)
     _sanitise_ties(part)
@@ -283,6 +284,58 @@ def _sanitise_ties(part: ET.Element) -> None:
             for tied in list(notations.findall("tied")):
                 if tied.get("type") == "start":
                     notations.remove(tied)
+
+
+def _merge_rests(measure: ET.Element, divisions: int) -> None:
+    """Coalesce consecutive rests in the same voice (D-090).
+
+    The writer fills a gap with the smallest set of writable rests, so a bar can
+    show two or three short rests where one longer rest belongs. Rests of the same
+    voice are merged even when notes of another voice sit between them in document
+    order, which is why the scan is per (staff, voice) rather than positional.
+    """
+    representable = set(_representable_ticks(divisions))
+    by_voice: dict[tuple[str, str], list[tuple[int, ET.Element]]] = {}
+    for index, element in enumerate(list(measure)):
+        if element.tag != "note" or element.find("rest") is None:
+            continue
+        key = (element.findtext("staff") or "1", element.findtext("voice") or "1")
+        by_voice.setdefault(key, []).append((index, element))
+    replacements: list[tuple[int, ET.Element]] = []
+    removals: list[ET.Element] = []
+    for (staff, voice), rests in by_voice.items():
+        position = 0
+        while position < len(rests):
+            index, element = rests[position]
+            total = int(element.findtext("duration") or 0)
+            run = [element]
+            cursor = position + 1
+            while cursor < len(rests):
+                combined = total + int(rests[cursor][1].findtext("duration") or 0)
+                if combined not in representable:
+                    break
+                total = combined
+                run.append(rests[cursor][1])
+                cursor += 1
+            if len(run) > 1:
+                replacement = ET.Element("note")
+                ET.SubElement(replacement, "rest")
+                ET.SubElement(replacement, "duration").text = str(total)
+                ET.SubElement(replacement, "voice").text = voice
+                type_name, dots = _note_type(total, divisions)
+                ET.SubElement(replacement, "type").text = type_name
+                for _ in range(dots):
+                    ET.SubElement(replacement, "dot")
+                ET.SubElement(replacement, "staff").text = staff
+                replacements.append((index, replacement))
+                removals.extend(run)
+            position = cursor if len(run) > 1 else position + 1
+    if not replacements:
+        return
+    for element in removals:
+        measure.remove(element)
+    for index, replacement in sorted(replacements, key=lambda item: item[0]):
+        measure.insert(min(index, len(measure)), replacement)
 
 
 def _apply_beams(measure: ET.Element, divisions: int, group_ticks: int) -> None:
