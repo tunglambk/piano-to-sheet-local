@@ -38,6 +38,7 @@ from p2s.core.schemas import (
 )
 from p2s.engines.registry import create_engine
 from p2s.post.align import align, parse_score_notes
+from p2s.post.clefs import apply_clef_changes
 from p2s.post.s6 import _apply_metadata, _apply_tempo, _drop_empty_voices, postprocess
 from p2s.render.midi import performance_midi, quantized_midi
 from p2s.render.mxl import build_mxl
@@ -542,10 +543,11 @@ class Pipeline:
     ) -> dict[str, Any]:
         # The rebar stage re-engraves after S6, so the header has to be applied to
         # the final document, not inside the post-processor (D-093).
-        if self.title or self.composer or self.bpm:
+        if True:
             root = ET.fromstring(score.musicxml)
             # The rebar stage runs after S6, so the final pass happens here too.
             _drop_empty_voices(root)
+            apply_clef_changes(root)
             _apply_metadata(root, self.title, self.composer)
             _apply_tempo(root, self.bpm)
             ET.indent(root)
