@@ -66,7 +66,12 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
     print(
         f"p2s {__version__}: {input_path.name} ({info.duration_s:.1f}s) preset={args.preset}", file=sys.stderr
     )
-    result = pipeline.run(input_path, args.preset, ingest, score_opts, hints)
+    # A score with no title prints as a bare page of notes; the file name is a
+    # serviceable default and the flags override it (D-093).
+    title = args.title or input_path.stem.replace("_", " ")
+    result = pipeline.run(
+        input_path, args.preset, ingest, score_opts, hints, title=title, composer=args.composer
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     render_dir = result.artifact("score.musicxml").parent
     files = list(OUTPUT_FILES)
@@ -149,6 +154,8 @@ def build_parser() -> argparse.ArgumentParser:
     transcribe.add_argument("input")
     transcribe.add_argument("-o", "--output", required=True)
     transcribe.add_argument("--preset", default="accurate", choices=["accurate", "fast", "song"])
+    transcribe.add_argument("--title", default=None, help="work title printed on the score")
+    transcribe.add_argument("--composer", default=None, help="composer printed on the score")
     transcribe.add_argument("--start", type=float, default=None)
     transcribe.add_argument("--end", type=float, default=None)
     transcribe.add_argument("--quantize-grid", default="1/16", choices=["1/8", "1/16", "1/32"])

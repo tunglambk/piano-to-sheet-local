@@ -16,6 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree as ET
 
 from p2s import __version__
 from p2s.core.cache import Cache, sha256_file
@@ -37,7 +38,7 @@ from p2s.core.schemas import (
 )
 from p2s.engines.registry import create_engine
 from p2s.post.align import align, parse_score_notes
-from p2s.post.s6 import postprocess
+from p2s.post.s6 import _apply_metadata, postprocess
 from p2s.render.midi import performance_midi, quantized_midi
 from p2s.render.mxl import build_mxl
 from p2s.render.pdf import render_pdf
@@ -123,6 +124,8 @@ class Pipeline:
         self.warnings: list[str] = []
         self.stage_keys: dict[str, str] = {}
         self.input_sha256 = ""
+        self.title: str | None = None
+        self.composer: str | None = None
         self.engines: dict[str, Any] = {}
         setup_determinism(0)
 
@@ -197,11 +200,15 @@ class Pipeline:
         ingest_opts: IngestOptions | None = None,
         score_opts: ScoreOptions | None = None,
         hints: MeterHints | None = None,
+        title: str | None = None,
+        composer: str | None = None,
     ) -> JobResult:
         preset = self.config.preset(preset_name)
         ingest_opts = ingest_opts or IngestOptions()
         score_opts = score_opts or ScoreOptions()
         hints = hints or MeterHints()
+        self.title = title
+        self.composer = composer
         input_path = Path(input_path)
         self.input_sha256 = sha256_file(input_path)
         amt_device = self.device or preset.amt_device or ("cuda" if preset_name != "fast" else "cpu")
@@ -395,9 +402,11 @@ class Pipeline:
             engine_id="p2s-post",
             engine_version=__version__,
             weights={},
-            params={},
+            params={"title": title or "", "composer": composer or ""},
             parents=[score_stage],
-            producer=lambda tmp, final: postprocess(score).model_dump(mode="json"),
+            producer=lambda tmp, final: postprocess(score, title=title, composer=composer).model_dump(
+                mode="json"
+            ),
         )
         score = ScoreDoc.model_validate(payload)
         self.warnings.extend(score.warnings)
@@ -520,6 +529,15 @@ class Pipeline:
     def _produce_render(
         self, tmp: Path, score: ScoreDoc, perf: Performance, grid: BeatGrid
     ) -> dict[str, Any]:
+        # The rebar stage re-engraves after S6, so the header has to be applied to
+        # the final document, not inside the post-processor (D-093).
+        if self.title or self.composer:
+            root = ET.fromstring(score.musicxml)
+            _apply_metadata(root, self.title, self.composer)
+            ET.indent(root)
+            score = score.model_copy(
+                update={"musicxml": ET.tostring(root, encoding="utf-8", xml_declaration=True)}
+            )
         try:
             rendered = render_pages(score.musicxml)
         except ValueError as exc:

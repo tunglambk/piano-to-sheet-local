@@ -205,7 +205,45 @@ def _reengrave(root: ET.Element) -> bytes:
     )
 
 
-def postprocess(doc: ScoreDoc, *, time_signature: str | None = None) -> ScoreDoc:
+def _apply_metadata(root: ET.Element, title: str | None, composer: str | None) -> None:
+    """Work title and composer, which the engraver prints above the staff (D-093).
+
+    Applied to the final document: a re-engrave step rebuilds the XML from notes and
+    would drop the header otherwise.
+    """
+    # A score without a title prints as a bare page of notes; the work title and the
+    # composer come from the job metadata (D-093).
+    if title:
+        work = root.find("work")
+        if work is None:
+            work = ET.Element("work")
+            root.insert(0, work)
+        for existing in work.findall("work-title"):
+            work.remove(existing)
+        ET.SubElement(work, "work-title").text = title
+    if title or composer:
+        movement = root.find("movement-title")
+        if movement is None and title:
+            root.insert(1, ET.Element("movement-title"))
+            root.find("movement-title").text = title
+    identification = root.find("identification")
+    if identification is None:
+        identification = ET.SubElement(root, "identification")
+    for existing in identification.findall("creator"):
+        identification.remove(existing)
+    if composer:
+        creator = ET.Element("creator", type="composer")
+        creator.text = composer
+        identification.insert(0, creator)
+
+
+def postprocess(
+    doc: ScoreDoc,
+    *,
+    time_signature: str | None = None,
+    title: str | None = None,
+    composer: str | None = None,
+) -> ScoreDoc:
     root = ET.fromstring(doc.musicxml)
     warnings = list(doc.warnings)
 
@@ -213,7 +251,9 @@ def postprocess(doc: ScoreDoc, *, time_signature: str | None = None) -> ScoreDoc
     identification = root.find("identification")
     if identification is not None:
         root.remove(identification)
-    identification = ET.SubElement(root, "identification")
+    identification = ET.Element("identification")
+    position = 2 if (title or composer) else 0
+    root.insert(min(position, len(root)), identification)
     ET.SubElement(identification, "encoding")
     ET.SubElement(identification, "software").text = f"p2s {__version__}"
 
@@ -280,6 +320,7 @@ def postprocess(doc: ScoreDoc, *, time_signature: str | None = None) -> ScoreDoc
         ET.SubElement(identification, "encoding")
         ET.SubElement(identification, "software").text = f"p2s {__version__}"
 
+    _apply_metadata(root, title, composer)
     ET.indent(root)
     return ScoreDoc(
         musicxml=ET.tostring(root, encoding="utf-8", xml_declaration=True),

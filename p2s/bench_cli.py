@@ -48,6 +48,8 @@ def _items(suite: str, limit: int, condition: str | None = None) -> list[dict]:
                     "start_s": float(entry.get("start_s") or meta.get("start_s") or 0.0),
                     "duration_s": float(meta.get("duration_s") or 0.0),
                     "condition": entry["condition"],
+                    "title": meta.get("title"),
+                    "composer": meta.get("composer"),
                 }
             )
         if condition:
@@ -89,6 +91,8 @@ def _items(suite: str, limit: int, condition: str | None = None) -> list[dict]:
                 "start_s": float(entry.get("start_s") or meta.get("start_s") or 0.0),
                 "duration_s": float(meta.get("duration_s") or 0.0),
                 "condition": entry.get("condition", "real"),
+                "title": meta.get("title"),
+                "composer": meta.get("composer"),
             }
         )
     if condition:
@@ -106,7 +110,7 @@ def _run_preset(
     if sidecar:
         config.engines.engines["score"]["m2st"].url = sidecar
     pipeline = Pipeline(config, DATA, job_id=item["id"], device=device)
-    result = pipeline.run(item["audio"], preset)
+    result = pipeline.run(item["audio"], preset, title=item.get("title"), composer=item.get("composer"))
     return result.artifact("score.musicxml"), result.artifact("performance.mid")
 
 
@@ -119,7 +123,7 @@ def _run_baseline(item: dict) -> tuple[Path, Path] | None:
 
     config = load_config()
     pipeline = Pipeline(config, DATA, job_id=f"baseline-{item['id']}")
-    result = pipeline.run(item["audio"], "fast")
+    result = pipeline.run(item["audio"], "fast", title=item.get("title"), composer=item.get("composer"))
     midi = result.artifact("performance.mid")
     tmp = Path(tempfile.mkdtemp())
     out = tmp / "baseline.musicxml"
