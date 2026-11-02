@@ -2,7 +2,7 @@
 <score-partwise version="4.0">
   <identification>
     <encoding />
-    <software>p2s 1.5.0</software>
+    <software>p2s 1.8.1</software>
   </identification>
   <part-list>
     <score-part id="P1">
@@ -31,13 +31,6 @@
           <line>2</line>
         </clef>
       </attributes>
-      <note>
-        <rest />
-        <duration>64</duration>
-        <voice>1</voice>
-        <type>whole</type>
-        <staff>1</staff>
-      </note>
       <backup>
         <duration>64</duration>
       </backup>
@@ -148,13 +141,6 @@
       <backup>
         <duration>64</duration>
       </backup>
-      <note>
-        <rest />
-        <duration>64</duration>
-        <voice>1</voice>
-        <type>whole</type>
-        <staff>2</staff>
-      </note>
     </measure>
     <measure number="3">
       <note>
