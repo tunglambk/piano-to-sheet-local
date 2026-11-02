@@ -42,6 +42,7 @@ from p2s.render.midi import performance_midi, quantized_midi
 from p2s.render.mxl import build_mxl
 from p2s.render.pdf import render_pdf
 from p2s.render.timemap import build_timemap
+from p2s.render.verovio import Rendered
 from p2s.render.verovio import render as render_pages
 
 ProgressCallback = Callable[[str, str, dict[str, Any]], None]
@@ -519,7 +520,14 @@ class Pipeline:
     def _produce_render(
         self, tmp: Path, score: ScoreDoc, perf: Performance, grid: BeatGrid
     ) -> dict[str, Any]:
-        rendered = render_pages(score.musicxml)
+        try:
+            rendered = render_pages(score.musicxml)
+        except ValueError as exc:
+            # Verovio is a C++ library: on notation it dislikes it segfaults, which
+            # the subprocess wrapper reports as a ValueError (D-092). The PDF still
+            # comes from MuseScore, so the job degrades instead of dying.
+            self.warnings.append(f"S8: no SVG pages ({exc})")
+            rendered = Rendered(mei="", pages=[], midi_b64="", verovio_version="unavailable")
         (tmp / "score.musicxml").write_bytes(score.musicxml)
         (tmp / "score.mei").write_text(rendered.mei)
         (tmp / "score.mxl").write_bytes(build_mxl(score.musicxml))

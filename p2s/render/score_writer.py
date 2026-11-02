@@ -220,13 +220,17 @@ def write_score(
                         _rest(measure, offset - cursor, staff, divisions, voice_index)
                         cursor = offset
                     longest = 0
-                    for chord_index, (chord_note, _o, chord_duration, chord_tie, chord_id) in enumerate(
-                        chord
-                    ):
+                    # A chord's first note can be dropped by the bar clipping; the
+                    # survivors must then stop being a chord, or Verovio crashes on
+                    # a `<chord/>` with no note before it (D-092).
+                    base_emitted = False
+                    for chord_note, _o, chord_duration, chord_tie, chord_id in chord:
                         available = max(1, lengths[m] - offset)
                         clipped = _fit_duration(chord_duration, available, divisions)
                         if clipped <= 0:
                             continue
+                        if base_emitted:
+                            chord_tie = None
                         _note(
                             measure,
                             chord_note,
@@ -236,9 +240,10 @@ def write_score(
                             staff,
                             fifths,
                             divisions,
-                            chord=chord_index > 0,
+                            chord=base_emitted,
                             voice=voice_index,
                         )
+                        base_emitted = True
                         longest = max(longest, clipped)
                     cursor += max(longest, 0)
                 if cursor < lengths[m]:
@@ -248,8 +253,10 @@ def write_score(
                     ET.SubElement(backup, "duration").text = str(lengths[m])
         measure_ticks = int(divisions * beats * 4 / max(1, beat_type))
         measure_beat_ticks = measure_ticks // max(1, beats)
+
         _merge_rests(measure, divisions)
         _apply_beams(measure, divisions, _beam_group_ticks(beats, beat_type, measure_beat_ticks))
+        _sanitise_chords(measure)
         _sanitise_beams(measure)
     _sanitise_ties(part)
     ET.indent(root)
@@ -336,6 +343,30 @@ def _merge_rests(measure: ET.Element, divisions: int) -> None:
         measure.remove(element)
     for index, replacement in sorted(replacements, key=lambda item: item[0]):
         measure.insert(min(index, len(measure)), replacement)
+
+
+def _sanitise_chords(measure: ET.Element) -> None:
+    """Drop a `<chord/>` that has no note before it in the same voice (D-092).
+
+    Bar clipping can remove the first note of a chord, leaving the rest marked as
+    continuations of something that is no longer written; Verovio segfaults on
+    that input rather than reporting an error.
+    """
+    previous: dict[tuple[str, str], ET.Element] = {}
+    for note in list(measure):
+        if note.tag in ("backup", "forward"):
+            # A backup starts a new layer: nothing before it can anchor a chord.
+            previous.clear()
+            continue
+        if note.tag != "note":
+            continue
+        key = (note.findtext("staff") or "1", note.findtext("voice") or "1")
+        chord = note.find("chord")
+        if chord is not None:
+            anchor = previous.get(key)
+            if anchor is None or anchor.find("pitch") is None:
+                note.remove(chord)
+        previous[key] = note
 
 
 def _apply_beams(measure: ET.Element, divisions: int, group_ticks: int) -> None:
@@ -470,6 +501,10 @@ def _note(
     else:
         step, alter, octave = spell(note.pitch, fifths)
     el = ET.SubElement(measure, "note", id=note_id)
+    # `<chord/>` is deliberately not emitted: merging notes that share a 1/16 grid
+    # slot into one chord measured 1.1–2.2 OMR points worse than writing them in
+    # sequence, because the reference scores keep those notes separate (D-092).
+    _ = chord
     pitch_el = ET.SubElement(el, "pitch")
     ET.SubElement(pitch_el, "step").text = step
     if alter:
