@@ -23,7 +23,7 @@ MIN_COVERAGE = 0.6
 # One 16th note at DIVISIONS = 16 per quarter.
 QUANT_TICKS = 4
 # Two notes starting within this window are treated as one chord.
-CHORD_TOLERANCE_S = 0.025
+CHORD_TOLERANCE_S = 0.040
 
 
 def _source_key(musicxml: bytes) -> tuple[int, str]:

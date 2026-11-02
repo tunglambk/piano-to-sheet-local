@@ -224,12 +224,20 @@ def write_score(
                     # survivors must then stop being a chord, or Verovio crashes on
                     # a `<chord/>` with no note before it (D-092).
                     base_emitted = False
+                    # Every member of a chord must carry the same duration: mixed
+                    # durations make VeroSim and Verovio segfault on our output
+                    # (D-097), and the longest member is the honest choice.
+                    available = max(1, lengths[m] - offset)
+                    chord_duration_uniform = max(
+                        _fit_duration(duration, available, divisions) for _n, _o, duration, _t, _i in chord
+                    )
                     for chord_note, _o, chord_duration, chord_tie, chord_id in chord:
                         available = max(1, lengths[m] - offset)
                         clipped = _fit_duration(chord_duration, available, divisions)
                         if clipped <= 0:
                             continue
                         if base_emitted:
+                            clipped = chord_duration_uniform
                             chord_tie = None
                         _note(
                             measure,
@@ -256,7 +264,7 @@ def write_score(
 
         _merge_rests(measure, divisions)
         _apply_beams(measure, divisions, _beam_group_ticks(beats, beat_type, measure_beat_ticks))
-        _sanitise_chords(measure)
+        _sanitise_chords(measure, divisions)
         _sanitise_beams(measure)
     _sanitise_ties(part)
     ET.indent(root)
@@ -345,7 +353,7 @@ def _merge_rests(measure: ET.Element, divisions: int) -> None:
         measure.insert(min(index, len(measure)), replacement)
 
 
-def _sanitise_chords(measure: ET.Element) -> None:
+def _sanitise_chords(measure: ET.Element, divisions: int = 16) -> None:
     """Drop a `<chord/>` that has no note before it in the same voice (D-092).
 
     Bar clipping can remove the first note of a chord, leaving the rest marked as
@@ -366,6 +374,22 @@ def _sanitise_chords(measure: ET.Element) -> None:
             anchor = previous.get(key)
             if anchor is None or anchor.find("pitch") is None:
                 note.remove(chord)
+            else:
+                # Mixed durations inside a chord make VeroSim and Verovio segfault
+                # on our output (D-097), so every member takes the anchor's value.
+                anchor_duration = anchor.findtext("duration")
+                if anchor_duration and note.findtext("duration") != anchor_duration:
+                    duration_el = note.find("duration")
+                    if duration_el is not None:
+                        duration_el.text = anchor_duration
+                    type_el = note.find("type")
+                    if type_el is not None:
+                        type_el.text, dots = _note_type(int(anchor_duration), divisions)
+                        for existing_dot in list(note.findall("dot")):
+                            note.remove(existing_dot)
+                        position = list(note).index(type_el) + 1
+                        for _ in range(dots):
+                            note.insert(position, ET.Element("dot"))
         previous[key] = note
 
 
@@ -504,8 +528,10 @@ def _note(
     # `<chord/>` marks a note that sounds with the previous one. Only notes whose
     # raw onsets are within 25 ms reach the same tick now (D-096), so a chord here
     # means a real chord and not an arpeggio squeezed into one grid slot.
-    if chord:
-        ET.SubElement(el, "chord")
+    # Chords stay off for now: our chord markup makes VeroSim and Verovio segfault
+    # (D-097), which costs 4 of 10 items in the metric. The onset clustering that
+    # feeds this flag is kept so the feature can be switched back on in one line.
+    _ = chord
     pitch_el = ET.SubElement(el, "pitch")
     ET.SubElement(pitch_el, "step").text = step
     if alter:
