@@ -52,57 +52,65 @@ def _spelling_of(note: ET.Element) -> tuple[int, str, int, int] | None:
 
 
 def parse_score_notes(musicxml: bytes) -> list[ScoreNote]:
+    """Every pitched note of a MusicXML score, across **all** parts (D-100).
+
+    The score model emits one `<part>` per staff: reading only the first part threw
+    away the whole left hand (420 of 996 notes on a test item) and left the bass
+    staff looking empty. Parts are merged here, and a note without `<staff>` takes
+    its part's number.
+    """
     root = ET.fromstring(musicxml)
-    part = root.find("part")
-    if part is None:
+    parts = root.findall("part")
+    if not parts:
         return []
-    attributes = part.find("measure/attributes")
-    divisions = _to_int(attributes.findtext("divisions") if attributes is not None else None, 16)
-    beats_per_bar = 4
-    if attributes is not None and attributes.find("time") is not None:
-        time_el = attributes.find("time")
-        if time_el is not None:
-            beats_per_bar = _to_int(time_el.findtext("beats"), 4)
     notes: list[ScoreNote] = []
-    measure_start_beat = 0.0
-    for measure_index, measure in enumerate(part.findall("measure"), start=1):
-        position = 0
-        staff = 1
-        index_by_staff: dict[int, int] = {}
-        measure_attrs = measure.find("attributes")
-        if measure_attrs is not None and measure_attrs.find("time") is not None:
-            time_el = measure_attrs.find("time")
+    for part_index, part in enumerate(parts):
+        attributes = part.find("measure/attributes")
+        divisions = _to_int(attributes.findtext("divisions") if attributes is not None else None, 16)
+        beats_per_bar = 4
+        if attributes is not None and attributes.find("time") is not None:
+            time_el = attributes.find("time")
             if time_el is not None:
-                beats_per_bar = _to_int(time_el.findtext("beats"), beats_per_bar)
-        for child in measure:
-            if child.tag == "backup":
-                position -= _to_int(child.findtext("duration"))
-            elif child.tag == "forward":
-                position += _to_int(child.findtext("duration"))
-            elif child.tag == "note":
-                staff = _to_int(child.findtext("staff"), staff)
-                duration = _to_int(child.findtext("duration"))
-                spelling = _spelling_of(child)
-                if spelling is not None:
-                    pitch, step, alter, octave = spelling
-                    idx = index_by_staff.get(staff, 0)
-                    index_by_staff[staff] = idx + 1
-                    note_id = child.get("id") or f"n{staff}-{measure_index}-{idx}"
-                    beat = measure_start_beat + position / divisions
-                    notes.append(
-                        ScoreNote(
-                            note_id,
-                            pitch,
-                            staff,
-                            measure_index,
-                            beat,
-                            duration / divisions,
-                            measure_start=measure_start_beat,
+                beats_per_bar = _to_int(time_el.findtext("beats"), 4)
+        measure_start_beat = 0.0
+        for measure_index, measure in enumerate(part.findall("measure"), start=1):
+            position = 0
+            staff = part_index + 1
+            index_by_staff: dict[int, int] = {}
+            measure_attrs = measure.find("attributes")
+            if measure_attrs is not None and measure_attrs.find("time") is not None:
+                time_el = measure_attrs.find("time")
+                if time_el is not None:
+                    beats_per_bar = _to_int(time_el.findtext("beats"), beats_per_bar)
+            for child in measure:
+                if child.tag == "backup":
+                    position -= _to_int(child.findtext("duration"))
+                elif child.tag == "forward":
+                    position += _to_int(child.findtext("duration"))
+                elif child.tag == "note":
+                    staff = _to_int(child.findtext("staff"), staff)
+                    duration = _to_int(child.findtext("duration"))
+                    spelling = _spelling_of(child)
+                    if spelling is not None:
+                        pitch, step, alter, octave = spelling
+                        idx = index_by_staff.get(staff, 0)
+                        index_by_staff[staff] = idx + 1
+                        note_id = child.get("id") or f"n{staff}-{measure_index}-{idx}"
+                        beat = measure_start_beat + position / divisions
+                        notes.append(
+                            ScoreNote(
+                                note_id,
+                                pitch,
+                                staff,
+                                measure_index,
+                                beat,
+                                duration / divisions,
+                                measure_start=measure_start_beat,
+                            )
                         )
-                    )
-                if child.find("chord") is None:
-                    position += duration
-        measure_start_beat += beats_per_bar
+                    if child.find("chord") is None:
+                        position += duration
+            measure_start_beat += beats_per_bar
     return notes
 
 
