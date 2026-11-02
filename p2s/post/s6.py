@@ -224,8 +224,9 @@ def _apply_metadata(root: ET.Element, title: str | None, composer: str | None) -
     if title or composer:
         movement = root.find("movement-title")
         if movement is None and title:
-            root.insert(1, ET.Element("movement-title"))
-            root.find("movement-title").text = title
+            movement = ET.Element("movement-title")
+            movement.text = title
+            root.insert(1, movement)
     identification = root.find("identification")
     if identification is None:
         identification = ET.SubElement(root, "identification")
