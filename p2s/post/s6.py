@@ -205,6 +205,35 @@ def _reengrave(root: ET.Element) -> bytes:
     )
 
 
+def _apply_tempo(root: ET.Element, bpm: float | None) -> None:
+    """Write a metronome mark in the first measure (D-094).
+
+    A score without a tempo mark tells the player nothing about speed, and the beat
+    grid already knows it: the median beat period is the tempo the transcription
+    assumed.
+    """
+    if not bpm or bpm <= 0:
+        return
+    part = root.find("part")
+    if part is None:
+        return
+    measure = part.find("measure")
+    if measure is None:
+        return
+    for existing in measure.findall("direction"):
+        if existing.find("direction-type/metronome") is not None:
+            return
+    direction = ET.Element("direction", placement="above")
+    direction_type = ET.SubElement(direction, "direction-type")
+    metronome = ET.SubElement(direction_type, "metronome")
+    ET.SubElement(metronome, "beat-unit").text = "quarter"
+    ET.SubElement(metronome, "per-minute").text = str(int(round(bpm)))
+    ET.SubElement(direction, "sound", tempo=str(round(float(bpm), 2)))
+    # After <attributes>, before the first note.
+    position = 1 if measure.find("attributes") is not None else 0
+    measure.insert(position, direction)
+
+
 def _apply_metadata(root: ET.Element, title: str | None, composer: str | None) -> None:
     """Work title and composer, which the engraver prints above the staff (D-093).
 
