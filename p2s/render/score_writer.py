@@ -197,6 +197,19 @@ def write_score(
                     chords.append([entry])
             voices: list[list[list[tuple[WriterNote, int, int, str | None, str]]]] = []
             voice_ends: list[int] = []
+            # A chord that repeats a pitch draws two noteheads on one line: that is a
+            # transcription artefact, not notation, so the repeat is dropped (D-102).
+            deduped: list[list[tuple[WriterNote, int, int, str | None, str]]] = []
+            for chord in chords:
+                seen: set[int] = set()
+                unique = []
+                for entry in chord:
+                    if entry[0].pitch in seen:
+                        continue
+                    seen.add(entry[0].pitch)
+                    unique.append(entry)
+                deduped.append(unique)
+            chords = deduped
             for chord in chords:
                 offset = chord[0][1]
                 duration = max(chord_duration for _n, _o, chord_duration, _t, _i in chord)
