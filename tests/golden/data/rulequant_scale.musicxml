@@ -2,7 +2,7 @@
 <score-partwise version="4.0">
   <identification>
     <encoding />
-    <software>p2s 1.2.2</software>
+    <software>p2s 1.5.0</software>
   </identification>
   <part-list>
     <score-part id="P1">
@@ -27,8 +27,8 @@
           <line>2</line>
         </clef>
         <clef number="2">
-          <sign>F</sign>
-          <line>4</line>
+          <sign>G</sign>
+          <line>2</line>
         </clef>
       </attributes>
       <note>
