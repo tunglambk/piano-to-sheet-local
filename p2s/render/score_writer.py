@@ -354,43 +354,40 @@ def _merge_rests(measure: ET.Element, divisions: int) -> None:
 
 
 def _sanitise_chords(measure: ET.Element, divisions: int = 16) -> None:
-    """Drop a `<chord/>` that has no note before it in the same voice (D-092).
+    """Make every `<chord/>` refer to the note immediately before it (D-097).
 
-    Bar clipping can remove the first note of a chord, leaving the rest marked as
-    continuations of something that is no longer written; Verovio segfaults on
-    that input rather than reporting an error.
+    A chord note is only valid when the element directly before it is a pitched
+    note; VeroSim and Verovio segfault otherwise (a chord after `<backup>` was the
+    last offender). The member also takes the anchor's duration, because mixed
+    durations inside a chord crash both tools.
     """
-    previous: dict[tuple[str, str], ET.Element] = {}
-    for note in list(measure):
-        if note.tag in ("backup", "forward"):
-            # A backup starts a new layer: nothing before it can anchor a chord.
-            previous.clear()
+    previous: ET.Element | None = None
+    for element in list(measure):
+        if element.tag != "note":
+            previous = None
             continue
-        if note.tag != "note":
+        chord = element.find("chord")
+        if chord is None:
+            previous = element
             continue
-        key = (note.findtext("staff") or "1", note.findtext("voice") or "1")
-        chord = note.find("chord")
-        if chord is not None:
-            anchor = previous.get(key)
-            if anchor is None or anchor.find("pitch") is None:
-                note.remove(chord)
-            else:
-                # Mixed durations inside a chord make VeroSim and Verovio segfault
-                # on our output (D-097), so every member takes the anchor's value.
-                anchor_duration = anchor.findtext("duration")
-                if anchor_duration and note.findtext("duration") != anchor_duration:
-                    duration_el = note.find("duration")
-                    if duration_el is not None:
-                        duration_el.text = anchor_duration
-                    type_el = note.find("type")
-                    if type_el is not None:
-                        type_el.text, dots = _note_type(int(anchor_duration), divisions)
-                        for existing_dot in list(note.findall("dot")):
-                            note.remove(existing_dot)
-                        position = list(note).index(type_el) + 1
-                        for _ in range(dots):
-                            note.insert(position, ET.Element("dot"))
-        previous[key] = note
+        if previous is None or previous.find("pitch") is None:
+            element.remove(chord)
+            previous = element
+            continue
+        anchor_duration = previous.findtext("duration")
+        if anchor_duration and element.findtext("duration") != anchor_duration:
+            duration_el = element.find("duration")
+            if duration_el is not None:
+                duration_el.text = anchor_duration
+            type_el = element.find("type")
+            if type_el is not None:
+                type_el.text, dots = _note_type(int(anchor_duration), divisions)
+                for existing_dot in list(element.findall("dot")):
+                    element.remove(existing_dot)
+                position = list(element).index(type_el) + 1
+                for _ in range(dots):
+                    element.insert(position, ET.Element("dot"))
+        previous = element
 
 
 def _apply_beams(measure: ET.Element, divisions: int, group_ticks: int) -> None:
@@ -528,10 +525,10 @@ def _note(
     # `<chord/>` marks a note that sounds with the previous one. Only notes whose
     # raw onsets are within 25 ms reach the same tick now (D-096), so a chord here
     # means a real chord and not an arpeggio squeezed into one grid slot.
-    # Chords stay off for now: our chord markup makes VeroSim and Verovio segfault
-    # (D-097), which costs 4 of 10 items in the metric. The onset clustering that
-    # feeds this flag is kept so the feature can be switched back on in one line.
-    _ = chord
+    # `<chord/>` marks a note that sounds with the previous one; the sanitiser
+    # guarantees the markup is one the importers accept (D-098).
+    if chord:
+        ET.SubElement(el, "chord")
     pitch_el = ET.SubElement(el, "pitch")
     ET.SubElement(pitch_el, "step").text = step
     if alter:
