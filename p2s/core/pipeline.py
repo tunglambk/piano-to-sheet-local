@@ -103,6 +103,9 @@ def _transcribe(
     )
 
 
+# Below this share of the performed notes, the score is missing music (D-101).
+NOTES_MIN_RATIO = 0.8
+
 class Pipeline:
     def __init__(
         self,
@@ -545,6 +548,16 @@ class Pipeline:
             ET.indent(root)
             score = score.model_copy(
                 update={"musicxml": ET.tostring(root, encoding="utf-8", xml_declaration=True)}
+            )
+        # A metric cannot see a note that was never parsed: the left hand once
+        # vanished between the score model and the engraver (D-100). Compare the
+        # counts and warn instead of shipping a sheet that is missing music.
+        scored = len([n for n in ET.fromstring(score.musicxml).iter("note") if n.find("pitch") is not None])
+        performed = len(perf.notes)
+        if performed and scored < NOTES_MIN_RATIO * performed:
+            self.warnings.append(
+                f"S8: score has {scored} notes for {performed} performed notes "
+                f"({scored / performed:.0%}) — notes were lost before engraving"
             )
         try:
             rendered = render_pages(score.musicxml)
