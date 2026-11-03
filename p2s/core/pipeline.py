@@ -446,6 +446,9 @@ class Pipeline:
         from p2s.post.rebar import rebar
 
         span = max(audio.duration_s, max((note.offset for note in performance.notes), default=0.0))
+        # Bar lines come from the tracked downbeats. The score model's own measures are
+        # available as `bar_source="score"` / `"hybrid"`, measured but not enabled:
+        # they fix the bar count and hurt OMR-NED (D-118).
         rebased = rebar(score.musicxml, alignment, grid, duration_s=span)
         if rebased is not None:
             rebased_xml: bytes = rebased

@@ -22,6 +22,8 @@ DEFAULT_BEATS_PER_BAR = 4
 MIN_COVERAGE = 0.6
 # One 16th note at DIVISIONS = 16 per quarter.
 QUANT_TICKS = 4
+# Above this ratio of tracker bars to score-model bars, the tracker is over-segmenting.
+OVERSEG_RATIO = 1.3
 # Two notes starting within this window are treated as one chord.
 CHORD_TOLERANCE_S = 0.040
 
@@ -83,11 +85,43 @@ def bar_count(grid: BeatGrid | None, duration_s: float) -> int:
     return len(_bar_times(grid.downbeats, grid.beats, duration_s))
 
 
+def _bar_times_from_score(notes: list, alignment: dict[str, tuple[float, float]]) -> list[float] | None:
+    """Bar lines taken from the score model's own measures, placed in performance time.
+
+    The tracker can over-segment downbeats — on two test items it produced 46 % and
+    118 % more bars than the reference, while the score model's own bar count was
+    within 15 % (D-118). The alignment maps every score note to a performance time,
+    so the model's measure starts can be used directly.
+    """
+    starts: dict[int, list[float]] = {}
+    for note in notes:
+        value = alignment.get(note.note_id)
+        if value is None:
+            continue
+        starts.setdefault(note.measure, []).append(float(value[0]))
+    if len(starts) < 4:
+        return None
+    # Sort by measure and use the median onset of each measure's notes: a single
+    # mis-aligned note must not make the whole sequence look non-monotonic (D-118).
+    times: list[float] = []
+    for _index, values in sorted(starts.items()):
+        values.sort()
+        value = values[len(values) // 2]
+        # A mis-aligned note can place a measure's start before the previous one; the
+        # bar order comes from the measure number, so the time is nudged forward
+        # instead of discarding the whole structure (D-118).
+        if times and value <= times[-1]:
+            value = times[-1] + 0.05
+        times.append(value)
+    return times
+
+
 def rebar(
     musicxml: bytes,
     alignment: dict[str, tuple[float, float]],
     grid: BeatGrid | None,
     duration_s: float | None = None,
+    bar_source: str = "grid",
 ) -> bytes | None:
     """Return a re-barred MusicXML, or None when the grid cannot support one."""
     if grid is None or len(grid.downbeats) < 4 or not alignment:
@@ -107,7 +141,15 @@ def rebar(
         return None
 
     span = float(duration_s or (max(value[1] for _, value in aligned if value) + 0.5))
-    bars = _bar_times(grid.downbeats, grid.beats, span)
+    grid_bars = _bar_times(grid.downbeats, grid.beats, span)
+    bars = grid_bars
+    from_score = _bar_times_from_score(notes, alignment)
+    if bar_source == "score" and from_score:
+        bars = [*from_score, from_score[-1] + (from_score[-1] - from_score[-2])]
+    elif bar_source == "hybrid" and from_score and len(grid_bars) > OVERSEG_RATIO * len(from_score):
+        # Only override the tracker when it clearly over-segments: the score model's
+        # own measures are a second, independent estimate (D-118).
+        bars = [*from_score, from_score[-1] + (from_score[-1] - from_score[-2])]
     if len(bars) < 4:
         return None
 
