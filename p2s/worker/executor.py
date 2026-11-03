@@ -34,6 +34,18 @@ def job_dir(data_dir: Path, job_id: str) -> Path:
     return path
 
 
+def _labels(params: dict) -> tuple[str | None, str | None]:
+    """Title and composer from the job parameters (D-131).
+
+    The API stores them in `params`, and the CLI passes them straight to the
+    pipeline; the worker used to drop them, so a job submitted through the web UI
+    produced a sheet with no title and no composer.
+    """
+    title = str(params.get("title") or "").strip() or None
+    composer = str(params.get("composer") or "").strip() or None
+    return title, composer
+
+
 def _options(job: Job) -> tuple[IngestOptions, ScoreOptions, MeterHints]:
     params = job.params()
     ingest = IngestOptions(**params.get("ingest", {}))
@@ -56,7 +68,9 @@ def run_job(job_id: str, data_dir: str) -> int:
             return 2
         preset, input_path = job.preset, Path(job.input_path)
         ingest, score, hints = _options(job)
-        device = job.params().get("device") or None
+        params = job.params()
+        title, composer = _labels(params)
+        device = params.get("device") or None
 
     def progress(stage: str, status: str, info: dict) -> None:
         with Session(engine) as session:
@@ -75,7 +89,7 @@ def run_job(job_id: str, data_dir: str) -> int:
 
     pipeline = Pipeline(load_config(), data, job_id=job_id, progress=progress, cancel=cancel, device=device)
     try:
-        result = pipeline.run(input_path, preset, ingest, score, hints)
+        result = pipeline.run(input_path, preset, ingest, score, hints, title=title, composer=composer)
     except BaseException as exc:  # noqa: BLE001 - every failure must become a state
         with Session(engine) as session:
             current = session.get(Job, job_id)
