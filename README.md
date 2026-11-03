@@ -6,7 +6,7 @@
 
 Turn piano audio or video (MP3, MP4, WAV, FLAC, OGG…) into two-staff sheet music — MusicXML, PDF and MIDI — entirely on your own machine. No cloud, no telemetry, no upload: the audio never leaves the computer.
 
-Status: **early development**. The core pipeline and the command-line tool work end to end; the local web UI is not built yet.
+Status: **early development**. The pipeline, the command-line tool and the local web UI work end to end; the benchmark numbers are below.
 
 ## What it does
 
@@ -106,6 +106,24 @@ data/, models/ local only — never committed
 ## Benchmarks
 
 `p2s-bench` runs a system over a suite and writes OMR-NED with bootstrap confidence intervals; `bench/datasets/p2s_open/build.py` builds the synthetic P2S-Open set from licence-cleared scores, rendered locally. Benchmark data and model weights stay outside the repository (see `configs/models.lock` and `bench/datasets/registry.yaml`).
+
+### Measured results
+
+**OMR-NED is an edit distance: lower is better, 0 is identical, and the specification's targets are v1 <= 86 and v2 <= 80.** All figures below were computed in one checkout on one build, with the excerpts scored against a reference **cropped to the same excerpt** (`bench/datasets/p2s_open/crop_reference.py`) - scoring a 75-second excerpt against a ten-minute score inflates the distance by about 20 points, which is what earlier numbers in this project did.
+
+| Suite (audio) | P2S pipeline | Baseline: Transkun -> MuseScore import |
+| --- | --- | --- |
+| **P2S-Open dev**, n=40, synthetic | **66.41** [63.73, 69.11] OMR-NED | 77.15 [75.19, 79.11] OMR-NED |
+| **MAPS dev**, n=18, real recordings | 82.65 [80.95, 84.23] OMR-NED | 81.63 [79.58, 83.47] OMR-NED |
+| **SMD dev**, n=30, real Disklavier | note F1 **0.9899** (no score in the dataset) | - |
+
+- On the synthetic split the pipeline is **10.7 points closer** than the baseline, better on **37 of 38** scored items, paired Wilcoxon **p = 5.1 x 10^-10**.
+- The MAPS reference is a **single-part** conversion while the pipeline engraves two hands; scoring a right-hand-only copy of the same output improves it by **3.3 points**, so the MAPS figure carries that handicap.
+- Playback fidelity (chroma with dynamic time warping) is **0.784** for the pipeline against **0.863** for the literal MIDI import: the baseline reproduces the performance's every note, which is exactly what makes it poor to read.
+- Pitch content: **92.6 % precision / 92.8 % recall** on the note multiset; the remaining OMR-NED distance is rhythmic and positional, not wrong pitches.
+- Readability: **7.9 %** of notes need more than three ledger lines, down from 23.1 % once clefs follow the register inside a piece.
+
+Two items (`rachmaninoff_010`) cannot be scored: the scoring tool crashes on their cropped reference, and they are reported as unscored, never as zero.
 
 ## Languages
 

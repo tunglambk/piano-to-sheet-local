@@ -107,6 +107,24 @@ data/, models/ chỉ ở máy — không bao giờ commit
 
 `p2s-bench` chạy một system trên một suite và ghi OMR-NED kèm khoảng tin cậy bootstrap; `bench/datasets/p2s_open/build.py` dựng tập tổng hợp P2S-Open từ các bản nhạc đã rõ license, render ngay trên máy. Dữ liệu benchmark và trọng số nằm ngoài repo (xem `configs/models.lock` và `bench/datasets/registry.yaml`).
 
+### Kết quả đo được
+
+**OMR-NED là khoảng cách sửa: càng thấp càng tốt, 0 là giống hệt, và mục tiêu trong spec là v1 ≤ 86, v2 ≤ 80.** Mọi số dưới đây đo trong một lần checkout, trên một build, với đoạn trích được chấm với bản tham chiếu **đã crop đúng đoạn đó** (`bench/datasets/p2s_open/crop_reference.py`) — chấm một đoạn 75 giây với bản nhạc dài 10 phút làm khoảng cách phồng thêm khoảng 20 điểm, và đó chính là cách các con số trước đây của dự án được đo.
+
+| Tập (audio) | Pipeline P2S | Baseline: Transkun → import MuseScore |
+| --- | --- | --- |
+| **P2S-Open dev**, n=40, tổng hợp | **66.41** [63.73, 69.11] OMR-NED | 77.15 [75.19, 79.11] OMR-NED |
+| **MAPS dev**, n=18, thu thật | 82.65 [80.95, 84.23] OMR-NED | 81.63 [79.58, 83.47] OMR-NED |
+| **SMD dev**, n=30, Disklavier thật | note F1 **0.9899** (tập này không có score) | — |
+
+- Trên tập tổng hợp, pipeline **gần hơn 10.7 điểm**, thắng **37/38** item chấm được, Wilcoxon ghép cặp **p = 5.1 × 10⁻¹⁰**.
+- Bản tham chiếu MAPS chỉ có **một bè** trong khi pipeline khắc hai tay; chấm bản chỉ-giữ-tay-phải của cùng đầu ra tốt hơn **3.3 điểm**, nên con số MAPS mang mức bất lợi đó.
+- Playback (chroma + dynamic time warping) là **0.784** cho pipeline so với **0.863** cho bản import MIDI nguyên xi: baseline tái hiện từng nốt đã chơi — đúng điều làm nó thành bản nhạc khó đọc.
+- Nội dung cao độ: **precision 92.6% / recall 92.8%** trên tập hợp nốt; phần khoảng cách còn lại là nhịp và vị trí, không phải sai cao độ.
+- Khả năng đọc: **7.9%** số nốt cần hơn ba dòng kẻ phụ, giảm từ 23.1% sau khi khoá được chọn theo cao độ trong từng bài.
+
+Hai item (`rachmaninoff_010`) không chấm được: công cụ chấm crash trên bản tham chiếu đã crop của chúng; chúng được báo là *không chấm được*, không bao giờ bị tính là 0.
+
 ## Ngôn ngữ
 
 README, spec và ghi chú CI có hai bản: `X.md` là **tiếng Anh và là bản chuẩn**, `X.vi.md` là bản dịch tiếng Việt; danh sách nằm ở [`docs/i18n.txt`](docs/i18n.txt). Khi lệch nhau, bản tiếng Anh thắng. `scripts/check_docs.py` (chạy trong CI) báo lỗi khi một tài liệu trong danh sách thiếu bản đối chiếu, thiếu dòng chuyển ngôn ngữ hoặc link tương đối không phân giải.
