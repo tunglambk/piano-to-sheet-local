@@ -171,6 +171,15 @@ def rebar(
             anchor = onset
         clustered[note_id] = anchor
 
+    # Inside a bar, position notes by the **beat period**, not by the bar's own
+    # width: a bar whose measured width is off (which is what happens when the bar
+    # lines come from the score model) would otherwise squash or stretch everything
+    # inside it (D-119).
+    beat_period = None
+    if grid is not None and len(grid.beats) >= 2:
+        gaps = sorted(b - a for a, b in zip(grid.beats, grid.beats[1:], strict=False) if b > a)
+        if gaps:
+            beat_period = gaps[len(gaps) // 2]
     writer_notes: list[WriterNote] = []
     for note, value in aligned:
         if value is None:
@@ -184,8 +193,9 @@ def rebar(
         # Snap to a 16th-note grid (D-089). Without this, mapping performance time
         # into bar ticks produced arbitrary ticks — 57 % of the notes landed off the
         # grid, most as 32nds and 64ths, and the gaps filled with 64th rests.
-        start = int(round((onset - bar_start) / width * bar_ticks))
-        end = int(round((offset - bar_start) / width * bar_ticks))
+        scale = bar_ticks / width if bar_source == "grid" or not beat_period else DIVISIONS / beat_period
+        start = int(round((onset - bar_start) * scale))
+        end = int(round((offset - bar_start) * scale))
         start = max(0, min(bar_ticks - QUANT_TICKS, start))
         start = int(round(start / QUANT_TICKS)) * QUANT_TICKS
         # A note may sustain past the bar line: the writer splits it into tied
