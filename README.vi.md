@@ -6,7 +6,7 @@
 
 Chuyển audio hoặc video piano (MP3, MP4, WAV, FLAC, OGG…) thành sheet nhạc 2 khuông — MusicXML, PDF và MIDI — ngay trên máy của bạn. Không cloud, không telemetry, không upload: audio không rời khỏi máy.
 
-Trạng thái: **đang phát triển sớm**. Pipeline lõi và công cụ dòng lệnh đã chạy end-to-end; UI web trên máy chưa có.
+Trạng thái: **đang phát triển sớm**. Pipeline, công cụ dòng lệnh và web UI trên máy đã chạy end-to-end; số benchmark ở mục dưới.
 
 ## Nó làm gì
 
