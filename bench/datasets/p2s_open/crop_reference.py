@@ -79,8 +79,19 @@ def crop(item_dir: Path, dry_run: bool = False) -> tuple[int, int] | None:
             if not first <= int(raw) <= last:
                 part.remove(measure)
         remaining = part.findall("measure")
-        if remaining and attributes is not None and remaining[0].find("attributes") is None:
-            remaining[0].insert(0, ET.fromstring(ET.tostring(attributes)))
+        if remaining and attributes is not None:
+            # Merge, do not skip: a cropped first measure may already carry an
+            # `<attributes>` block (a clef change, say) but lack `<divisions>`,
+            # `<key>` or `<time>`, and then no importer can read the file — VeroSim
+            # segfaulted on exactly that (D-121).
+            target = remaining[0].find("attributes")
+            if target is None:
+                remaining[0].insert(0, ET.fromstring(ET.tostring(attributes)))
+            else:
+                present = {child.tag for child in target}
+                for child in attributes:
+                    if child.tag not in present:
+                        target.insert(0, ET.fromstring(ET.tostring(child)))
         # Renumber from 1: a file whose first measure is numbered 63 is unusual and
         # made one importer crash (D-116).
         for new_number, measure in enumerate(remaining, start=1):
