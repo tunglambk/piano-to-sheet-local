@@ -43,7 +43,11 @@ def _items(suite: str, limit: int, condition: str | None = None) -> list[dict]:
                 {
                     "id": entry["item_id"],
                     "audio": item_dir / "audio.wav",
-                    "gt_score": item_dir / "score.musicxml",
+                    "gt_score": (
+                        item_dir / "score_excerpt.musicxml"
+                        if (item_dir / "score_excerpt.musicxml").exists()
+                        else item_dir / "score.musicxml"
+                    ),
                     "gt_performance": item_dir / "performance.mid",
                     "start_s": float(entry.get("start_s") or meta.get("start_s") or 0.0),
                     "duration_s": float(meta.get("duration_s") or 0.0),
@@ -82,11 +86,14 @@ def _items(suite: str, limit: int, condition: str | None = None) -> list[dict]:
         item_dir = REPO_ROOT / entry["path"]
         meta_path = item_dir / "meta.json"
         meta = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+        # Prefer a reference cropped to the excerpt: scoring a 75 s excerpt against the
+        # whole piece dilutes the distance (D-116).
+        excerpt = item_dir / "score_excerpt.musicxml"
         out.append(
             {
                 "id": entry["item_id"],
                 "audio": item_dir / "audio.wav",
-                "gt_score": item_dir / "score.musicxml",
+                "gt_score": excerpt if excerpt.exists() else item_dir / "score.musicxml",
                 "gt_performance": item_dir / "performance.mid",
                 "start_s": float(entry.get("start_s") or meta.get("start_s") or 0.0),
                 "duration_s": float(meta.get("duration_s") or 0.0),

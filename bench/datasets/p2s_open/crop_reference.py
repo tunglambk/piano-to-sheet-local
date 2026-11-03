@@ -81,6 +81,10 @@ def crop(item_dir: Path, dry_run: bool = False) -> tuple[int, int] | None:
         remaining = part.findall("measure")
         if remaining and attributes is not None and remaining[0].find("attributes") is None:
             remaining[0].insert(0, ET.fromstring(ET.tostring(attributes)))
+        # Renumber from 1: a file whose first measure is numbered 63 is unusual and
+        # made one importer crash (D-116).
+        for new_number, measure in enumerate(remaining, start=1):
+            measure.set("number", str(new_number))
     if not dry_run:
         ET.ElementTree(root).write(
             item_dir / "score_excerpt.musicxml", encoding="utf-8", xml_declaration=True
